@@ -3,113 +3,1513 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entorno de Estudio P3 — UTM</title>
-  <!-- Usamos la versión estable más reciente para soporte de Passthrough en Quest 3S -->
+  <title>Entorno de Estudio — Propuesta P3</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.5.0/aframe.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700;800&display=swap');
 
-    :root { --cyan: #00e6ff; --glass: rgba(6, 12, 30, 0.85); }
-
-    /* HUD para Realidad Mixta */
-    #ar-hud {
-      position: fixed; inset: 0; pointer-events: none;
-      display: none; font-family: 'Outfit', sans-serif; z-index: 10;
+    :root {
+      --cyan: #00e6ff;
+      --cyan-dim: rgba(0,230,255,0.15);
+      --cyan-border: rgba(0,230,255,0.35);
+      --glass: rgba(6,12,30,0.78);
     }
 
-    #hud-container {
-      position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
-      background: var(--glass); border: 1px solid var(--cyan);
-      padding: 15px 40px; border-radius: 50px; text-align: center;
-      box-shadow: 0 0 20px rgba(0, 230, 255, 0.2);
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Outfit', sans-serif; overflow: hidden; background: #000; }
+    a-scene { width: 100vw; height: 100vh; }
+
+    /* ═══════════════════════════════════════
+       VISOR FRAME
+    ═══════════════════════════════════════ */
+    #visor-frame {
+      position: fixed; inset: 0; pointer-events: none; z-index: 10;
+      border-radius: 32px;
+      box-shadow: inset 0 0 120px rgba(0,0,0,0.5);
+    }
+    #visor-frame::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 85% 90% at 50% 50%, transparent 58%, rgba(0,0,0,0.65) 82%, rgba(0,0,0,0.97) 100%);
+      border-radius: 32px;
     }
 
-    #timer {
-      font-family: 'Share Tech Mono', monospace; font-size: 3rem;
-      color: #fff; text-shadow: 0 0 10px var(--cyan);
+    /* ═══════════════════════════════════════
+       PANTALLA DE INICIO
+    ═══════════════════════════════════════ */
+    #screen-inicio {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(2,5,18,0.96);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 28px;
+      backdrop-filter: blur(16px);
+      overflow-y: auto;
+      padding: 24px 0;
     }
 
-    .badge {
-      font-size: 10px; color: var(--cyan); letter-spacing: 3px;
-      text-transform: uppercase; margin-bottom: 5px;
+    /* Top identity */
+    .app-badge {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
+    .app-eyebrow {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+      color: rgba(0,230,255,0.4);
+    }
+    .app-name {
+      font-size: 32px; font-weight: 800;
+      color: #fff; letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .app-name em { color: var(--cyan); font-style: normal; }
+    .app-sub {
+      font-size: 11px; font-weight: 300;
+      color: rgba(255,255,255,0.3); letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Divider */
+    .section-label {
+      font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+      display: flex; align-items: center; gap: 12px; width: 560px;
+    }
+    .section-label::before, .section-label::after {
+      content: ''; flex: 1;
+      height: 1px; background: rgba(255,255,255,0.07);
+    }
+
+    /* ─── Environment Cards ─── */
+    .env-grid {
+      display: flex; gap: 14px;
+    }
+    .env-card {
+      width: 174px; border-radius: 16px;
+      border: 2px solid rgba(255,255,255,0.06);
+      cursor: pointer; overflow: hidden;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      position: relative;
+    }
+    .env-card:hover {
+      border-color: rgba(255,255,255,0.18);
+      transform: translateY(-2px);
+    }
+    .env-card.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 28px rgba(0,230,255,0.2), inset 0 0 20px rgba(0,230,255,0.04);
+    }
+    /* Check badge */
+    .env-card .check {
+      position: absolute; top: 10px; right: 10px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--cyan);
+      display: none; align-items: center; justify-content: center;
+      font-size: 11px; color: #000; font-weight: 800;
+    }
+    .env-card.selected .check { display: flex; }
+
+    /* Preview area */
+    .env-preview {
+      height: 100px; position: relative; overflow: hidden;
+    }
+    /* Espacio */
+    .env-card[data-env="espacio"] .env-preview {
+      background: radial-gradient(ellipse at 50% 60%, #1a1050 0%, #08051a 50%, #000008 100%);
+    }
+    /* Estrellas simuladas */
+    .stars { position: absolute; inset: 0; }
+    .star {
+      position: absolute; border-radius: 50%;
+      background: #fff;
+    }
+    /* Nebula glow */
+    .nebula {
+      position: absolute; top: 20%; left: 30%;
+      width: 80px; height: 50px;
+      background: radial-gradient(ellipse, rgba(120,60,255,0.3) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    /* Luna */
+    .moon {
+      position: absolute; top: 12px; right: 28px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fffce0, #e0d8a0);
+      box-shadow: 0 0 10px rgba(255,255,200,0.4);
+    }
+
+    /* Bosque */
+    .env-card[data-env="bosque"] .env-preview {
+      background: linear-gradient(to bottom, #c8dfc0 0%, #a0c090 30%, #4a6830 65%, #3d2b1a 100%);
+    }
+    .trees-svg { position: absolute; bottom: 0; width: 100%; }
+
+    /* Biblioteca */
+    .env-card[data-env="biblioteca"] .env-preview {
+      background: linear-gradient(to bottom, #2a1a06 0%, #3d2a10 40%, #5a3a18 70%, #3d2010 100%);
+    }
+    .shelf-row {
+      position: absolute;
+      display: flex; gap: 3px; align-items: flex-end;
+    }
+    .book-mini {
+      width: 6px; border-radius: 1px 1px 0 0;
+    }
+    .lamp-mini {
+      position: absolute;
+      width: 14px; height: 14px;
+      background: radial-gradient(circle, rgba(255,200,80,0.8) 0%, rgba(255,160,40,0) 100%);
+      border-radius: 50%;
+    }
+
+    .env-info {
+      padding: 12px 14px 14px;
+      background: rgba(0,0,0,0.5);
+    }
+    .env-name {
+      font-size: 13px; font-weight: 700; color: #fff;
+      margin-bottom: 3px;
+    }
+    .env-desc {
+      font-size: 10px; color: rgba(255,255,255,0.35);
+      line-height: 1.4;
+    }
+
+    /* ─── Config section ─── */
+    .config-box {
+      width: 560px;
+      background: rgba(0,230,255,0.03);
+      border: 1px solid rgba(0,230,255,0.12);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .config-row-item {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .config-row-label {
+      font-size: 11px; color: rgba(255,255,255,0.4);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .rf-mini {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px; letter-spacing: 1px;
+      color: rgba(0,230,255,0.45);
+      background: rgba(0,230,255,0.08);
+      border: 1px solid rgba(0,230,255,0.2);
+      padding: 1px 5px; border-radius: 3px;
+    }
+    .chip-group { display: flex; gap: 6px; }
+    .chip {
+      padding: 5px 13px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.35);
+      cursor: pointer; transition: all .18s;
+      background: transparent;
+    }
+    .chip:hover { border-color: rgba(0,230,255,0.4); color: rgba(0,230,255,0.7); }
+    .chip.active {
+      background: rgba(0,230,255,0.12);
+      border-color: rgba(0,230,255,0.6);
+      color: var(--cyan);
+    }
+    .config-divider { height: 1px; background: rgba(255,255,255,0.05); }
+
+    /* ─── Start button ─── */
+    .btn-start-wrap { position: relative; }
+    #btn-start {
+      background: linear-gradient(135deg, rgba(0,230,255,0.22), rgba(0,160,255,0.12));
+      border: 1.5px solid rgba(0,230,255,0.65);
+      color: var(--cyan);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: 4px; text-transform: uppercase;
+      padding: 15px 56px;
+      border-radius: 10px; cursor: pointer;
+      transition: all .2s;
+      width: 560px;
+    }
+    #btn-start:hover {
+      background: rgba(0,230,255,0.22);
+      box-shadow: 0 0 32px rgba(0,230,255,0.25);
+      transform: translateY(-1px);
+    }
+    #btn-start:active { transform: translateY(0); }
+    .btn-rf {
+      position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px; color: rgba(0,230,255,0.3);
+      writing-mode: vertical-rl;
+      letter-spacing: 2px;
+    }
+
+    /* ═══════════════════════════════════════
+       AR OVERLAY
+    ═══════════════════════════════════════ */
+    #ar-overlay {
+      position: fixed; inset: 0; z-index: 50;
+      pointer-events: none; display: none;
+    }
+    .rf-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px; letter-spacing: 1.5px;
+      background: rgba(0,230,255,0.1);
+      border: 1px solid rgba(0,230,255,0.3);
+      color: rgba(0,230,255,0.65);
+      padding: 2px 6px; border-radius: 3px;
+      display: inline-block; margin-bottom: 4px;
+    }
+
+    /* Env indicator top-right */
+    #env-indicator {
+      position: absolute; top: 28px; right: 32px;
+      background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.2);
+      border-radius: 8px; padding: 8px 14px;
+      display: flex; align-items: center; gap: 8px;
+      backdrop-filter: blur(8px);
+    }
+    .env-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .env-dot.espacio { background: #a060ff; box-shadow: 0 0 6px #a060ff; }
+    .env-dot.bosque  { background: #40c060; box-shadow: 0 0 6px #40c060; }
+    .env-dot.biblioteca { background: #ffaa30; box-shadow: 0 0 6px #ffaa30; }
+    .env-label { font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 600; }
+
+    /* Pomodoro HUD */
+    #hud-pomodoro {
+      position: absolute;
+      top: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--glass);
+      border: 1px solid var(--cyan-border);
+      border-radius: 50px;
+      padding: 10px 32px;
+      display: flex; align-items: center; gap: 22px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 24px rgba(0,230,255,0.1), inset 0 0 12px rgba(0,230,255,0.03);
+    }
+    .pomo-phase {
+      font-size: 8px; letter-spacing: 3px;
+      color: rgba(0,230,255,0.5); text-transform: uppercase;
+    }
+    .pomo-time {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 34px; color: #fff; letter-spacing: 5px;
+      text-shadow: 0 0 14px rgba(0,230,255,0.4);
+      transition: color .3s, text-shadow .3s;
+    }
+    .pomo-time.urgent {
+      color: #ff7070;
+      text-shadow: 0 0 14px rgba(255,80,80,0.5);
+      animation: urgentPulse .8s ease-in-out infinite;
+    }
+    @keyframes urgentPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+    .pomo-dots { display: flex; gap: 5px; }
+    .pomo-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(0,230,255,0.15);
+      border: 1px solid rgba(0,230,255,0.3);
+      transition: background .4s;
+    }
+    .pomo-dot.done { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+
+    /* Progress */
+    #hud-progress {
+      position: absolute;
+      top: 28px; left: 32px;
+      background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.22);
+      border-radius: 14px;
+      padding: 14px 18px;
+      min-width: 186px;
+      backdrop-filter: blur(10px);
+    }
+    .prog-title {
+      font-size: 8px; letter-spacing: 2.5px; color: rgba(0,230,255,0.45);
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .prog-bar-bg {
+      background: rgba(255,255,255,0.04);
+      border-radius: 4px; height: 4px; margin-bottom: 8px; overflow: hidden;
+    }
+    .prog-bar-fill {
+      height: 100%; border-radius: 4px;
+      background: linear-gradient(90deg, #0077ff, var(--cyan));
+      box-shadow: 0 0 8px rgba(0,230,255,0.5);
+      transition: width 1.2s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+    .prog-row {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: rgba(255,255,255,0.3);
+      margin-top: 4px;
+    }
+    .prog-row strong { color: var(--cyan); font-weight: 700; }
+
+    /* Sensory Controls */
+    #hud-sensory {
+      position: absolute;
+      top: 50%; right: 28px; transform: translateY(-50%);
+      background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.22);
+      border-radius: 16px;
+      padding: 18px 16px;
+      min-width: 164px;
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 14px;
+      pointer-events: all;
+      transition: opacity .3s, transform .3s;
+    }
+    #hud-sensory.collapsed {
+      opacity: 0; pointer-events: none;
+      transform: translateY(-50%) translateX(20px);
+    }
+    /* Toggle button for sensory panel */
+    #sensory-toggle {
+      position: absolute;
+      top: 50%; right: 28px; transform: translateY(-50%);
+      background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.3);
+      border-radius: 8px; padding: 8px 10px;
+      cursor: pointer; pointer-events: all;
+      font-size: 14px; transition: all .2s;
+      backdrop-filter: blur(8px);
+      z-index: 51;
+      display: none;
+    }
+    #sensory-toggle.show { display: block; }
+    .sens-head {
+      font-size: 8px; letter-spacing: 3px; color: rgba(0,230,255,0.45);
+      text-transform: uppercase; text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(0,230,255,0.08);
+    }
+    .sens-row { display: flex; flex-direction: column; gap: 5px; }
+    .sens-lbl {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: rgba(255,255,255,0.4);
+    }
+    .sens-lbl strong { color: var(--cyan); font-size: 10px; }
+    input[type=range].s-slider {
+      -webkit-appearance: none; width: 100%; height: 2px;
+      background: rgba(255,255,255,0.07); border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type=range].s-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 6px rgba(0,230,255,0.7);
+    }
+    .tog-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 10px; color: rgba(255,255,255,0.4);
+    }
+    .toggle {
+      width: 30px; height: 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(0,230,255,0.3);
+      border-radius: 8px; cursor: pointer; position: relative;
+      transition: background .2s; pointer-events: all;
+    }
+    .toggle.on { background: rgba(0,230,255,0.35); border-color: var(--cyan); }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(0,230,255,0.5); transition: left .2s, background .2s;
+    }
+    .toggle.on::after { left: 16px; background: var(--cyan); }
+
+    /* Distractor overlay */
+    #distractor-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0);
+      transition: background .6s ease; pointer-events: none;
+    }
+    #distractor-overlay.active { background: rgba(0,2,12,0.6); }
+    #focus-zone {
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 62%; height: 58%;
+      border: 1px solid rgba(0,230,255,0.18);
+      border-radius: 10px;
+      box-shadow: 0 0 0 2000px rgba(0,2,12,0.5);
+      pointer-events: none; display: none;
+    }
+    #focus-zone.active { display: block; }
+    #fz-label {
+      position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px; letter-spacing: 2px; color: rgba(0,230,255,0.35);
+      white-space: nowrap;
+    }
+
+    /* Break alert */
+    #hud-break {
+      position: absolute;
+      bottom: 36px; left: 50%; transform: translateX(-50%);
+      background: rgba(10,5,0,0.88);
+      border: 1px solid rgba(255,175,0,0.45);
+      border-radius: 14px; padding: 14px 30px;
+      display: none; flex-direction: column; align-items: center; gap: 5px;
+      backdrop-filter: blur(10px);
+      animation: bPulse 1.8s ease-in-out infinite;
+    }
+    #hud-break.visible { display: flex; }
+    @keyframes bPulse {
+      0%,100%{ box-shadow: 0 0 18px rgba(255,175,0,0.1); }
+      50%{ box-shadow: 0 0 30px rgba(255,175,0,0.25); }
+    }
+    .break-msg { font-size: 12px; color: rgba(255,190,70,0.95); font-weight: 700; letter-spacing: .5px; }
+    .break-sub { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 1px; }
+
+    /* Status bar */
+    #hud-status {
+      position: absolute; bottom: 28px; left: 32px;
+      display: flex; gap: 8px;
+    }
+    .st-pill {
+      background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.15);
+      border-radius: 8px; padding: 6px 12px;
+      font-size: 10px; color: rgba(255,255,255,0.35);
+      display: flex; align-items: center; gap: 7px;
+      backdrop-filter: blur(6px);
+    }
+    .st-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .st-dot.g { background: #00ff88; box-shadow: 0 0 5px #00ff88; }
+    .st-dot.y { background: #ffcc00; }
+    #hint-text {
+      position: absolute; bottom: 28px; right: 210px;
+      font-size: 9px; color: rgba(255,255,255,0.15); letter-spacing: 1px;
+    }
+
+    /* ═══════════════════════════════════════
+       PAUSE SCREEN
+    ═══════════════════════════════════════ */
+    #screen-pause {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(4,2,14,0.92);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      backdrop-filter: blur(16px);
+    }
+    #screen-pause.visible { display: flex; }
+    .pause-emoji { font-size: 48px; animation: breathe 3s ease-in-out infinite; }
+    @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+    .pause-title { font-size: 22px; font-weight: 800; color: rgba(255,195,70,0.95); letter-spacing: 1px; }
+    .pause-sub { font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 3px; text-transform: uppercase; }
+    .pause-big {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 60px; color: #fff; letter-spacing: 7px;
+    }
+    .btn-resume {
+      background: rgba(255,195,70,0.1);
+      border: 1px solid rgba(255,195,70,0.45);
+      color: rgba(255,195,70,0.9);
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: 4px;
+      text-transform: uppercase; padding: 13px 38px;
+      border-radius: 10px; cursor: pointer; pointer-events: all;
+      transition: all .2s;
+    }
+    .btn-resume:hover { background: rgba(255,195,70,0.18); box-shadow: 0 0 20px rgba(255,195,70,0.15); }
+
+    /* ═══════════════════════════════════════
+       TRANSITION OVERLAY
+    ═══════════════════════════════════════ */
+    #transition-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: #000; opacity: 0; pointer-events: none;
+      transition: opacity .5s ease;
+    }
+    #transition-overlay.fade-in { opacity: 1; pointer-events: all; }
+    #transition-overlay.fade-out { opacity: 0; pointer-events: none; }
+
+    /* Corner brackets */
+    .corner-br {
+      position: fixed; z-index: 55;
+      width: 26px; height: 26px;
+      opacity: 0.35; pointer-events: none;
+    }
+    #cbr-tl { top: 26px; left: 34px; }
+    #cbr-tr { top: 26px; right: 34px; transform: scaleX(-1); }
+    #cbr-bl { bottom: 26px; left: 34px; transform: scaleY(-1); }
+    #cbr-br { bottom: 26px; right: 34px; transform: scale(-1,-1); }
+
+    /* AR mode toggle button */
+    #ar-mode-btn {
+      position: fixed; bottom: 28px; right: 28px; z-index: 60;
+      background: rgba(0,180,255,0.12);
+      border: 1.5px solid rgba(0,180,255,0.5);
+      color: rgba(0,200,255,0.9);
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 10px 18px; border-radius: 8px;
+      cursor: pointer; transition: all .2s;
+      display: none; align-items: center; gap: 8px;
+    }
+    #ar-mode-btn:hover { background: rgba(0,180,255,0.22); }
+    #ar-mode-btn.show { display: flex; }
+
+    /* AR info panel (explica la diferencia) */
+    #ar-info {
+      position: fixed; bottom: 80px; right: 28px; z-index: 60;
+      background: rgba(6,12,30,0.92);
+      border: 1px solid rgba(0,180,255,0.3);
+      border-radius: 12px; padding: 14px 16px;
+      max-width: 220px;
+      display: none;
+      backdrop-filter: blur(10px);
+    }
+    #ar-info.show { display: block; }
+    .ar-info-title {
+      font-size: 11px; font-weight: 700; color: rgba(0,200,255,0.9);
+      margin-bottom: 6px; letter-spacing: 1px;
+    }
+    .ar-info-body {
+      font-size: 9px; color: rgba(255,255,255,0.4);
+      line-height: 1.6; letter-spacing: .3px;
+    }
+    .ar-info-body strong { color: rgba(0,200,255,0.7); }
   </style>
 </head>
 <body>
 
-  <!-- Capa de interfaz de usuario (DOM Overlay) -->
-  <div id="ar-hud">
-    <div id="hud-container">
-      <div class="badge">Sesión de Enfoque Activa</div>
-      <div id="timer">25:00</div>
+<!-- ══════════════════════════════════════════════════
+     A-FRAME SCENE
+══════════════════════════════════════════════════ -->
+<a-scene
+  id="main-scene"
+  background="color: #0a0d14"
+  fog="type: linear; color: #0a0d14; near: 7; far: 18"
+  renderer="antialias: true; colorManagement: true; alpha: true"
+  webxr="requiredFeatures: local-floor; optionalFeatures: dom-overlay, bounded-floor, hand-tracking, anchors, plane-detection"
+  vr-mode-ui="enabled: true">
+
+  <!-- ── ASSETS ── -->
+  <a-assets>
+    <img id="astro-img" src="astronauta.png" crossorigin="anonymous">
+  </a-assets>
+
+  <!-- ── LIGHTING (shared, updated per env via JS) ── -->
+  <a-light id="light-ambient" type="ambient" color="#1a2030" intensity="0.7"></a-light>
+  <a-light id="light-dir" type="directional" position="2 4 1" color="#a0c8ff" intensity="0.6"></a-light>
+  <a-light id="light-lamp" type="point" position="1.2 1.6 -1.5" color="#ffcc88" intensity="1.2" distance="4"></a-light>
+  <a-light id="light-win" type="point" position="-3 2 -3" color="#b0d4ff" intensity="0.8" distance="6"></a-light>
+
+  <!-- ══ ENTORNO: BOSQUE ══ -->
+  <a-entity id="env-bosque" visible="false">
+    <a-sky color="#1a2a18"></a-sky>
+    <!-- Suelo exterior -->
+    <a-plane position="0 -0.02 -8" rotation="-90 0 0" width="30" height="20" color="#3a5828"></a-plane>
+    <!-- Árboles -->
+    <a-entity position="-4 0 -10">
+      <a-cylinder radius="0.18" height="9" color="#c8c4b8"></a-cylinder>
+      <a-sphere position="0 5.5 0" radius="1.5" color="#4a6a38" roughness="0.95"></a-sphere>
+    </a-entity>
+    <a-entity position="-1.5 0 -12">
+      <a-cylinder radius="0.14" height="10" color="#d0ccbe"></a-cylinder>
+      <a-sphere position="0 6 0" radius="1.7" color="#3a5828" roughness="0.95"></a-sphere>
+    </a-entity>
+    <a-entity position="1.5 0 -11">
+      <a-cylinder radius="0.20" height="10" color="#ccc8ba"></a-cylinder>
+      <a-sphere position="0 6 0" radius="2.0" color="#507840"></a-sphere>
+    </a-entity>
+    <a-entity position="4.5 0 -10">
+      <a-cylinder radius="0.16" height="9" color="#c8c4b8"></a-cylinder>
+      <a-sphere position="0 5.5 0" radius="1.4" color="#486038"></a-sphere>
+    </a-entity>
+    <a-entity position="6.5 0 -9">
+      <a-cylinder radius="0.22" height="8" color="#d0ccbe"></a-cylinder>
+      <a-sphere position="0 5 0" radius="1.6" color="#547844"></a-sphere>
+    </a-entity>
+    <!-- Pinos -->
+    <a-entity position="-6 0 -14">
+      <a-cone radius-bottom="1.4" radius-top="0.05" height="6" color="#2a4018"></a-cone>
+      <a-cylinder radius="0.12" height="2" color="#3a2010" position="0 -3.5 0"></a-cylinder>
+    </a-entity>
+    <a-entity position="7.5 0 -13">
+      <a-cone radius-bottom="1.2" radius-top="0.05" height="5.5" color="#2e4820"></a-cone>
+    </a-entity>
+    <!-- Niebla suelo -->
+    <a-sphere position="-2 0.2 -9" radius="3.5" color="#c0d8b0" opacity="0.07"></a-sphere>
+    <a-sphere position="3 0.1 -10" radius="3" color="#c0d8b0" opacity="0.06"></a-sphere>
+  </a-entity>
+
+  <!-- ══ ENTORNO: ESPACIO ══ -->
+  <a-entity id="env-espacio" visible="false">
+    <a-sky color="#000510"></a-sky>
+    <!-- Estrellas lejanas -->
+    <a-sphere position="-8 4 -15" radius="0.04" color="#fff" opacity="0.9"></a-sphere>
+    <a-sphere position="5 7 -18" radius="0.06" color="#fff" opacity="0.8"></a-sphere>
+    <a-sphere position="-12 2 -20" radius="0.03" color="#d0e0ff" opacity="0.9"></a-sphere>
+    <a-sphere position="10 5 -16" radius="0.05" color="#fff" opacity="0.7"></a-sphere>
+    <a-sphere position="-3 8 -19" radius="0.04" color="#fff" opacity="0.85"></a-sphere>
+    <a-sphere position="7 1 -17" radius="0.06" color="#ffe8d0" opacity="0.7"></a-sphere>
+    <a-sphere position="-6 6 -18" radius="0.03" color="#d0d8ff" opacity="0.9"></a-sphere>
+    <a-sphere position="3 9 -20" radius="0.04" color="#fff" opacity="0.75"></a-sphere>
+    <a-sphere position="12 3 -18" radius="0.03" color="#fff" opacity="0.8"></a-sphere>
+    <a-sphere position="-10 7 -22" radius="0.05" color="#e0d0ff" opacity="0.85"></a-sphere>
+    <a-sphere position="1 2 -16" radius="0.04" color="#fff" opacity="0.6"></a-sphere>
+    <a-sphere position="-5 1 -14" radius="0.03" color="#fff" opacity="0.7"></a-sphere>
+    <a-sphere position="8 8 -22" radius="0.05" color="#fff" opacity="0.9"></a-sphere>
+    <a-sphere position="-14 4 -25" radius="0.04" color="#c0b0ff" opacity="0.7"></a-sphere>
+    <a-sphere position="15 6 -25" radius="0.06" color="#fff" opacity="0.65"></a-sphere>
+    <a-sphere position="0 10 -22" radius="0.03" color="#ffddcc" opacity="0.8"></a-sphere>
+    <a-sphere position="-2 3 -13" radius="0.05" color="#fff" opacity="0.6"></a-sphere>
+    <a-sphere position="6 4 -14" radius="0.04" color="#d0e8ff" opacity="0.75"></a-sphere>
+    <!-- Nebulosa -->
+    <a-sphere position="-4 4 -16" radius="4" color="#5020a0" opacity="0.04"></a-sphere>
+    <a-sphere position="3 3 -18" radius="3" color="#204090" opacity="0.05"></a-sphere>
+    <!-- Luna/Planeta -->
+    <a-sphere position="-7 5 -14" radius="0.9" color="#d8d0c0" roughness="0.8">
+      <a-light type="point" color="#fffce0" intensity="0.3" distance="4"></a-light>
+    </a-sphere>
+    <!-- Plataforma exterior (suelo espacial mínimo) -->
+    <a-plane position="0 -0.02 -8" rotation="-90 0 0" width="30" height="20" color="#050510"></a-plane>
+  </a-entity>
+
+  <!-- ══ ENTORNO: BIBLIOTECA ══ -->
+  <a-entity id="env-biblioteca" visible="false">
+    <a-sky color="#140a02"></a-sky>
+    <!-- Pared posterior cálida -->
+    <a-plane position="0 2.5 -6" rotation="0 0 0" width="12" height="8" color="#2a1a08"></a-plane>
+    <!-- Estantería izquierda -->
+    <a-entity position="-4.5 0 -4">
+      <!-- Estructura -->
+      <a-box position="0 2 0" width="2.2" height="4" depth="0.3" color="#3a2408"></a-box>
+      <!-- Tablas -->
+      <a-box position="0 0.8 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 1.6 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 2.4 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 3.2 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <!-- Libros fila 1 -->
+      <a-box position="-0.7 1.0 0.12" width="0.08" height="0.2" depth="0.22" color="#8b2222"></a-box>
+      <a-box position="-0.6 1.0 0.12" width="0.06" height="0.18" depth="0.22" color="#224488"></a-box>
+      <a-box position="-0.52 1.0 0.12" width="0.08" height="0.22" depth="0.22" color="#226644"></a-box>
+      <a-box position="-0.43 1.0 0.12" width="0.07" height="0.19" depth="0.22" color="#885522"></a-box>
+      <a-box position="-0.35 1.0 0.12" width="0.06" height="0.21" depth="0.22" color="#664488"></a-box>
+      <a-box position="0.0 1.0 0.12" width="0.10" height="0.20" depth="0.22" color="#aa3322"></a-box>
+      <a-box position="0.12 1.0 0.12" width="0.07" height="0.17" depth="0.22" color="#2244aa"></a-box>
+      <a-box position="0.5 1.0 0.12" width="0.08" height="0.20" depth="0.22" color="#228844"></a-box>
+      <a-box position="0.6 1.0 0.12" width="0.09" height="0.22" depth="0.22" color="#cc7722"></a-box>
+      <a-box position="0.7 1.0 0.12" width="0.06" height="0.18" depth="0.22" color="#5544aa"></a-box>
+      <!-- Libros fila 2 -->
+      <a-box position="-0.7 1.8 0.12" width="0.08" height="0.20" depth="0.22" color="#2244cc"></a-box>
+      <a-box position="-0.6 1.8 0.12" width="0.07" height="0.18" depth="0.22" color="#884422"></a-box>
+      <a-box position="-0.52 1.8 0.12" width="0.09" height="0.22" depth="0.22" color="#228866"></a-box>
+      <a-box position="-0.42 1.8 0.12" width="0.06" height="0.19" depth="0.22" color="#664422"></a-box>
+      <a-box position="0.1 1.8 0.12" width="0.08" height="0.20" depth="0.22" color="#aa2244"></a-box>
+      <a-box position="0.2 1.8 0.12" width="0.07" height="0.21" depth="0.22" color="#224488"></a-box>
+      <a-box position="0.5 1.8 0.12" width="0.10" height="0.19" depth="0.22" color="#558822"></a-box>
+      <a-box position="0.62 1.8 0.12" width="0.07" height="0.22" depth="0.22" color="#882266"></a-box>
+      <!-- Fila 3 -->
+      <a-box position="-0.7 2.6 0.12" width="0.08" height="0.20" depth="0.22" color="#446622"></a-box>
+      <a-box position="-0.6 2.6 0.12" width="0.07" height="0.18" depth="0.22" color="#884422"></a-box>
+      <a-box position="-0.52 2.6 0.12" width="0.09" height="0.22" depth="0.22" color="#4422aa"></a-box>
+      <a-box position="0.2 2.6 0.12" width="0.08" height="0.21" depth="0.22" color="#cc6622"></a-box>
+      <a-box position="0.5 2.6 0.12" width="0.07" height="0.20" depth="0.22" color="#224488"></a-box>
+      <a-box position="0.6 2.6 0.12" width="0.09" height="0.19" depth="0.22" color="#882222"></a-box>
+    </a-entity>
+    <!-- Estantería derecha (espejo) -->
+    <a-entity position="4.5 0 -4">
+      <a-box position="0 2 0" width="2.2" height="4" depth="0.3" color="#3a2408"></a-box>
+      <a-box position="0 0.8 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 1.6 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 2.4 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <a-box position="0 3.2 0.1" width="2" height="0.04" depth="0.25" color="#4a3010"></a-box>
+      <!-- Libros surtidos -->
+      <a-box position="-0.65 1.0 0.12" width="0.08" height="0.20" depth="0.22" color="#cc4422"></a-box>
+      <a-box position="-0.55 1.0 0.12" width="0.07" height="0.18" depth="0.22" color="#2255bb"></a-box>
+      <a-box position="-0.47 1.0 0.12" width="0.09" height="0.22" depth="0.22" color="#338844"></a-box>
+      <a-box position="-0.37 1.0 0.12" width="0.06" height="0.19" depth="0.22" color="#996633"></a-box>
+      <a-box position="0.05 1.0 0.12" width="0.09" height="0.20" depth="0.22" color="#553388"></a-box>
+      <a-box position="0.16 1.0 0.12" width="0.07" height="0.21" depth="0.22" color="#226699"></a-box>
+      <a-box position="0.5 1.0 0.12" width="0.08" height="0.19" depth="0.22" color="#aa4433"></a-box>
+      <a-box position="0.6 1.0 0.12" width="0.07" height="0.22" depth="0.22" color="#334488"></a-box>
+      <a-box position="-0.65 1.8 0.12" width="0.08" height="0.20" depth="0.22" color="#228855"></a-box>
+      <a-box position="-0.55 1.8 0.12" width="0.07" height="0.18" depth="0.22" color="#aa3355"></a-box>
+      <a-box position="0.1 1.8 0.12" width="0.10" height="0.21" depth="0.22" color="#5566bb"></a-box>
+      <a-box position="0.5 1.8 0.12" width="0.08" height="0.20" depth="0.22" color="#884433"></a-box>
+      <a-box position="0.62 1.8 0.12" width="0.07" height="0.19" depth="0.22" color="#226644"></a-box>
+      <a-box position="-0.7 2.6 0.12" width="0.08" height="0.21" depth="0.22" color="#aa5522"></a-box>
+      <a-box position="-0.6 2.6 0.12" width="0.07" height="0.20" depth="0.22" color="#334499"></a-box>
+      <a-box position="0.2 2.6 0.12" width="0.09" height="0.19" depth="0.22" color="#553322"></a-box>
+      <a-box position="0.5 2.6 0.12" width="0.08" height="0.21" depth="0.22" color="#226633"></a-box>
+    </a-entity>
+    <!-- Lámparas de pie (izquierda y derecha) -->
+    <a-entity position="-2.5 0 -3.5">
+      <a-cylinder radius="0.05" height="1.6" color="#6a4a20"></a-cylinder>
+      <a-cone position="0 0.95 0" radius-bottom="0.25" radius-top="0.05" height="0.3" color="#888" rotation="0 0 0"></a-cone>
+      <a-light type="point" position="0 0.85 0" color="#ffcc70" intensity="1.5" distance="5"></a-light>
+    </a-entity>
+    <a-entity position="2.5 0 -3.5">
+      <a-cylinder radius="0.05" height="1.6" color="#6a4a20"></a-cylinder>
+      <a-cone position="0 0.95 0" radius-bottom="0.25" radius-top="0.05" height="0.3" color="#888"></a-cone>
+      <a-light type="point" position="0 0.85 0" color="#ffcc70" intensity="1.5" distance="5"></a-light>
+    </a-entity>
+    <!-- Cuadro en pared -->
+    <a-box position="0 2.8 -5.9" width="1.4" height="0.9" depth="0.04" color="#2a1a06"></a-box>
+    <a-plane position="0 2.8 -5.87" width="1.2" height="0.7" color="#4a3a28" roughness="0.9"></a-plane>
+    <!-- Suelo biblioteca -->
+    <a-plane position="0 0 -6" rotation="-90 0 0" width="30" height="20" color="#2a1a08"></a-plane>
+  </a-entity>
+
+  <!-- ══ CUARTO INTERIOR (compartido por todos) ══ -->
+
+  <!-- Suelo madera -->
+  <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#1a1208" roughness="0.85"></a-plane>
+
+  <!-- Paredes -->
+  <a-plane id="back-wall" position="0 2.5 -5" rotation="0 0 0" width="10" height="5" color="#1c2030"></a-plane>
+  <a-plane position="-5 2.5 0" rotation="0 90 0" width="10" height="5" color="#181e2a"></a-plane>
+
+  <!-- Ventana izquierda -->
+  <a-entity position="-4.95 2.2 -2">
+    <a-box width="0.08" height="1.6" depth="1.8" color="#2a2010"></a-box>
+    <a-plane position="0.05 0 0" rotation="0 90 0" width="1.6" height="1.4" color="#9ab8e0" opacity="0.12" transparent="true"></a-plane>
+  </a-entity>
+
+  <!-- Escritorio -->
+  <a-box position="0.5 0.75 -2.2" width="2.8" height="0.06" depth="1.4" color="#3d2b1a" roughness="0.5"></a-box>
+  <a-box position="-0.8 0.37 -1.6" width="0.06" height="0.74" depth="0.06" color="#2a1e10"></a-box>
+  <a-box position="1.8 0.37 -1.6" width="0.06" height="0.74" depth="0.06" color="#2a1e10"></a-box>
+  <a-box position="-0.8 0.37 -2.8" width="0.06" height="0.74" depth="0.06" color="#2a1e10"></a-box>
+  <a-box position="1.8 0.37 -2.8" width="0.06" height="0.74" depth="0.06" color="#2a1e10"></a-box>
+
+  <!-- Laptop -->
+  <a-entity position="0.5 0.79 -2.1">
+    <a-box position="0 0.01 0" width="0.7" height="0.02" depth="0.48" color="#222"></a-box>
+    <a-box position="0 0.28 -0.22" rotation="-15 0 0" width="0.7" height="0.46" depth="0.015" color="#111"></a-box>
+    <a-plane position="0 0.27 -0.21" rotation="-15 0 0" width="0.62" height="0.38" color="#1a4a8a" opacity="0.8"></a-plane>
+    <a-plane position="-0.16 0.27 -0.208" rotation="-15 0 0" width="0.12" height="0.38" color="#142e5a" opacity="0.9"></a-plane>
+  </a-entity>
+
+  <!-- Teclado -->
+  <a-box position="0.5 0.783 -1.72" width="0.68" height="0.01" depth="0.26" color="#1c1c22" roughness="0.5"></a-box>
+  <a-box position="0.5 0.788 -1.72" width="0.6" height="0.008" depth="0.20" color="#252530" roughness="0.4"></a-box>
+
+  <!-- Ratón -->
+  <a-entity position="1.25 0.785 -1.85">
+    <a-box position="0 0.01 0" width="0.08" height="0.022" depth="0.12" color="#1a1a20" roughness="0.4"></a-box>
+    <a-sphere position="0 0.025 -0.02" radius="0.04" color="#1c1c22"></a-sphere>
+  </a-entity>
+
+  <!-- Libros -->
+  <a-entity position="-0.65 0.78 -2.45">
+    <a-box position="0 0.03 0" width="0.22" height="0.06" depth="0.3" color="#8b2222"></a-box>
+    <a-box position="0.01 0.09 0.01" width="0.20" height="0.06" depth="0.28" color="#1a5a2a"></a-box>
+    <a-box position="-0.01 0.15 0" width="0.21" height="0.06" depth="0.3" color="#4a3a8a"></a-box>
+  </a-entity>
+
+  <!-- Cuaderno -->
+  <a-entity position="1.45 0.79 -2.0" rotation="0 -6 0">
+    <a-plane rotation="-90 0 0" width="0.34" height="0.26" color="#f0ead8"></a-plane>
+    <a-plane rotation="-90 0 0" position="0 0.001 -0.04" width="0.27" height="0.002" color="#bbb" opacity="0.4"></a-plane>
+    <a-plane rotation="-90 0 0" position="0 0.001 0.0" width="0.27" height="0.002" color="#bbb" opacity="0.4"></a-plane>
+    <a-plane rotation="-90 0 0" position="0 0.001 0.04" width="0.27" height="0.002" color="#bbb" opacity="0.4"></a-plane>
+    <a-cylinder position="0.02 0.022 0.02" rotation="0 0 90" radius="0.005" height="0.20" color="#1a1a1a"></a-cylinder>
+  </a-entity>
+
+  <!-- Lámpara escritorio -->
+  <a-entity position="1.72 0.78 -2.52">
+    <a-cylinder position="0 0.04 0" radius="0.055" height="0.04" color="#333"></a-cylinder>
+    <a-cylinder position="0 0.35 0" radius="0.012" height="0.48" color="#444"></a-cylinder>
+    <a-cone position="0 0.65 0" radius-bottom="0.11" radius-top="0.03" height="0.14" color="#555" rotation="180 0 0"></a-cone>
+  </a-entity>
+
+  <!-- Taza -->
+  <a-entity position="1.1 0.79 -1.92">
+    <a-cylinder radius="0.038" height="0.075" color="#ccc"></a-cylinder>
+    <a-circle position="0 0.039 0" rotation="-90 0 0" radius="0.033" color="#3a1808"></a-circle>
+  </a-entity>
+
+  <!-- ══ ASTRONAUTA HOLOGRÁFICO — esquina izquierda del escritorio ══ -->
+  <a-entity id="astro-entity" position="-0.68 0.78 -2.4" rotation="0 25 0">
+
+    <!-- Base / pedestal -->
+    <a-cylinder
+      position="0 0.015 0"
+      radius="0.055" height="0.018"
+      color="#0a1a3a" roughness="0.3" metalness="0.7">
+    </a-cylinder>
+
+    <!-- Pantalla del display (fondo oscuro que enmarca la imagen) -->
+    <a-box
+      position="0 0.13 0"
+      width="0.12" height="0.13" depth="0.008"
+      color="#050d20" roughness="0.2" metalness="0.5">
+    </a-box>
+
+    <!-- Marco del display (borde cyan) -->
+    <a-box
+      position="0 0.13 0.001"
+      width="0.125" height="0.135" depth="0.003"
+      color="#0055aa" opacity="0.6">
+    </a-box>
+
+    <!-- Imagen del astronauta — pequeña, estática, dentro del display -->
+    <a-image
+      src="#astro-img"
+      width="0.10" height="0.10"
+      position="0 0.134 0.006"
+      rotation="0 0 0">
+    </a-image>
+
+    <!-- Glow parpadeante del display -->
+    <a-plane
+      position="0 0.13 0.008"
+      width="0.10" height="0.10"
+      color="#0088ff" opacity="0.08"
+      animation="property: opacity; from: 0.03; to: 0.14; dur: 2000; loop: true; dir: alternate; easing: easeInOutSine">
+    </a-plane>
+
+    <!-- Anillo de base giratorio -->
+    <a-torus
+      position="0 0.014 0"
+      radius="0.055" radius-tubular="0.003"
+      color="#00aaff" opacity="0.5"
+      rotation="-90 0 0"
+      animation="property: rotation; from: -90 0 0; to: -90 360 0; dur: 5000; loop: true; easing: linear">
+    </a-torus>
+
+    <!-- Punto de luz flotante -->
+    <a-sphere
+      position="0 0.22 0"
+      radius="0.005"
+      color="#00ddff" opacity="0.8"
+      animation="property: position; from: 0 0.22 0; to: 0 0.26 0; dur: 1800; loop: true; dir: alternate; easing: easeInOutSine">
+    </a-sphere>
+
+  </a-entity>
+
+  <!-- Silla -->
+  <a-entity position="0.5 0 -1.1">
+    <a-box position="0 0.46 0" width="0.6" height="0.06" depth="0.55" color="#1a1a2a"></a-box>
+    <a-box position="0 0.82 0.24" width="0.58" height="0.62" depth="0.05" color="#1a1a2a"></a-box>
+    <a-cylinder position="-0.24 0.22 -0.2" radius="0.022" height="0.44" color="#333"></a-cylinder>
+    <a-cylinder position="0.24 0.22 -0.2" radius="0.022" height="0.44" color="#333"></a-cylinder>
+    <a-cylinder position="-0.24 0.22 0.2" radius="0.022" height="0.44" color="#333"></a-cylinder>
+    <a-cylinder position="0.24 0.22 0.2" radius="0.022" height="0.44" color="#333"></a-cylinder>
+  </a-entity>
+
+  <!-- Cámara -->
+  <a-camera
+    position="0.5 1.42 0.5"
+    look-controls="magicWindowTrackingEnabled: false; reverseMouseDrag: false"
+    wasd-controls="acceleration: 18">
+  </a-camera>
+
+</a-scene>
+
+<!-- ══════════════════════════════════════════════════
+     VISOR FRAME
+══════════════════════════════════════════════════ -->
+<div id="visor-frame"></div>
+
+<!-- Corner brackets -->
+<div class="corner-br" id="cbr-tl">
+  <svg viewBox="0 0 26 26" fill="none"><path d="M2 11V3h8" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="7" r="1.5" fill="rgba(255,255,255,0.35)"/></svg>
+</div>
+<div class="corner-br" id="cbr-tr">
+  <svg viewBox="0 0 26 26" fill="none"><path d="M2 11V3h8" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="7" r="1.5" fill="rgba(255,255,255,0.35)"/></svg>
+</div>
+<div class="corner-br" id="cbr-bl">
+  <svg viewBox="0 0 26 26" fill="none"><path d="M2 11V3h8" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="7" r="1.5" fill="rgba(255,255,255,0.35)"/></svg>
+</div>
+<div class="corner-br" id="cbr-br">
+  <svg viewBox="0 0 26 26" fill="none"><path d="M2 11V3h8" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="7" r="1.5" fill="rgba(255,255,255,0.35)"/><path d="M20 20 L24 16" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/></svg>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     PANTALLA DE INICIO
+══════════════════════════════════════════════════ -->
+<div id="screen-inicio">
+
+  <!-- Identity -->
+  <div class="app-badge">
+    <div class="app-eyebrow">UTM · Maestría en Medios Interactivos · P3</div>
+    <div class="app-name">Entorno de <em>Estudio</em></div>
+    <div class="app-sub">Prototipo Realidad Mixta · Meta Quest 3</div>
+  </div>
+
+  <!-- Environment selection -->
+  <div class="section-label">selecciona tu ambiente</div>
+
+  <div class="env-grid">
+
+    <!-- Espacio -->
+    <div class="env-card selected" data-env="espacio" onclick="selectEnv(this)">
+      <div class="check">✓</div>
+      <div class="env-preview">
+        <!-- Estrellas CSS -->
+        <div class="stars">
+          <div class="star" style="width:2px;height:2px;top:15%;left:20%;opacity:.9"></div>
+          <div class="star" style="width:3px;height:3px;top:30%;left:60%;opacity:.7"></div>
+          <div class="star" style="width:2px;height:2px;top:55%;left:40%;opacity:.85"></div>
+          <div class="star" style="width:2px;height:2px;top:20%;left:80%;opacity:.6"></div>
+          <div class="star" style="width:3px;height:3px;top:70%;left:15%;opacity:.75"></div>
+          <div class="star" style="width:2px;height:2px;top:45%;left:72%;opacity:.9"></div>
+          <div class="star" style="width:2px;height:2px;top:10%;left:50%;opacity:.65"></div>
+          <div class="star" style="width:2px;height:2px;top:80%;left:85%;opacity:.8"></div>
+          <div class="star" style="width:3px;height:3px;top:60%;left:92%;opacity:.7"></div>
+          <div class="star" style="width:2px;height:2px;top:38%;left:28%;opacity:.75"></div>
+          <div class="star" style="width:2px;height:2px;top:85%;left:52%;opacity:.6"></div>
+        </div>
+        <div class="nebula"></div>
+        <div class="moon"></div>
+      </div>
+      <div class="env-info">
+        <div class="env-name">🌌 Espacio</div>
+        <div class="env-desc">Cosmos oscuro. Concentración máxima sin distracciones externas.</div>
+      </div>
+    </div>
+
+    <!-- Bosque -->
+    <div class="env-card" data-env="bosque" onclick="selectEnv(this)">
+      <div class="check">✓</div>
+      <div class="env-preview">
+        <svg class="trees-svg" viewBox="0 0 174 100" xmlns="http://www.w3.org/2000/svg">
+          <!-- Sky gradient via rect -->
+          <rect width="174" height="100" fill="url(#skyG)"/>
+          <defs>
+            <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c8e0c0"/>
+              <stop offset="100%" stop-color="#6a8850"/>
+            </linearGradient>
+          </defs>
+          <!-- Trees silhouettes -->
+          <ellipse cx="20" cy="55" rx="14" ry="18" fill="#3a5828"/>
+          <rect x="18" y="72" width="4" height="28" fill="#5a3a20"/>
+          <ellipse cx="48" cy="48" rx="16" ry="22" fill="#2e4820"/>
+          <rect x="46" y="68" width="4" height="32" fill="#4a3018"/>
+          <ellipse cx="80" cy="42" rx="18" ry="26" fill="#3a5828"/>
+          <rect x="78" y="65" width="5" height="35" fill="#5a3a20"/>
+          <ellipse cx="118" cy="50" rx="15" ry="20" fill="#486040"/>
+          <rect x="116" y="68" width="4" height="32" fill="#4a3018"/>
+          <ellipse cx="148" cy="55" rx="14" ry="18" fill="#3a5030"/>
+          <rect x="146" y="70" width="4" height="30" fill="#5a3a20"/>
+          <!-- Ground -->
+          <rect y="84" width="174" height="16" fill="#3d2b1a"/>
+          <!-- Fog -->
+          <ellipse cx="87" cy="88" rx="80" ry="15" fill="rgba(200,230,180,0.15)"/>
+        </svg>
+      </div>
+      <div class="env-info">
+        <div class="env-name">🌲 Bosque</div>
+        <div class="env-desc">Naturaleza relajante. Luz suave de mañana entre los árboles.</div>
+      </div>
+    </div>
+
+    <!-- Biblioteca -->
+    <div class="env-card" data-env="biblioteca" onclick="selectEnv(this)">
+      <div class="check">✓</div>
+      <div class="env-preview" style="position:relative;overflow:hidden">
+        <!-- Shelves drawn with CSS / inline elements -->
+        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,#1a0e04 0%,#2a1a08 50%,#1a0e04 100%)"></div>
+        <!-- Shelf rows -->
+        <div class="shelf-row" style="bottom:60px;left:8px;right:8px">
+          <div class="book-mini" style="height:28px;background:#8b2222"></div>
+          <div class="book-mini" style="height:24px;background:#224488"></div>
+          <div class="book-mini" style="height:30px;background:#226644"></div>
+          <div class="book-mini" style="height:26px;background:#885522"></div>
+          <div class="book-mini" style="height:28px;background:#664488"></div>
+          <div class="book-mini" style="height:22px;background:#aa3322"></div>
+          <div class="book-mini" style="height:27px;background:#2244aa"></div>
+          <div class="book-mini" style="height:25px;background:#228844"></div>
+          <div class="book-mini" style="height:29px;background:#cc7722"></div>
+          <div class="book-mini" style="height:23px;background:#5544aa"></div>
+          <div class="book-mini" style="height:28px;background:#aa2244"></div>
+          <div class="book-mini" style="height:26px;background:#336622"></div>
+          <div class="book-mini" style="height:30px;background:#224466"></div>
+          <div class="book-mini" style="height:24px;background:#884422"></div>
+        </div>
+        <!-- Shelf plank -->
+        <div style="position:absolute;bottom:58px;left:0;right:0;height:3px;background:#5a3a18"></div>
+        <div class="shelf-row" style="bottom:30px;left:8px;right:8px">
+          <div class="book-mini" style="height:24px;background:#2255bb"></div>
+          <div class="book-mini" style="height:28px;background:#338844"></div>
+          <div class="book-mini" style="height:22px;background:#996633"></div>
+          <div class="book-mini" style="height:26px;background:#553388"></div>
+          <div class="book-mini" style="height:24px;background:#226699"></div>
+          <div class="book-mini" style="height:30px;background:#cc6622"></div>
+          <div class="book-mini" style="height:26px;background:#aa4433"></div>
+          <div class="book-mini" style="height:22px;background:#334488"></div>
+          <div class="book-mini" style="height:28px;background:#228855"></div>
+          <div class="book-mini" style="height:24px;background:#aa3355"></div>
+          <div class="book-mini" style="height:27px;background:#5566bb"></div>
+          <div class="book-mini" style="height:23px;background:#884433"></div>
+          <div class="book-mini" style="height:25px;background:#226644"></div>
+          <div class="book-mini" style="height:29px;background:#553322"></div>
+        </div>
+        <div style="position:absolute;bottom:28px;left:0;right:0;height:3px;background:#5a3a18"></div>
+        <!-- Lamp glow -->
+        <div class="lamp-mini" style="bottom:65px;left:75px"></div>
+        <div class="lamp-mini" style="bottom:65px;right:30px;width:18px;height:18px"></div>
+        <!-- Ground -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:28px;background:#1a0e04"></div>
+      </div>
+      <div class="env-info">
+        <div class="env-name">📚 Biblioteca</div>
+        <div class="env-desc">Ambiente cálido y académico. Luz de lámparas Edison entre estanterías.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Config -->
+  <div class="section-label">configuración de sesión</div>
+
+  <div class="config-box">
+    <div class="config-row-item">
+      <div class="config-row-label">
+        Método de estudio
+        <span class="rf-mini">RF5</span>
+      </div>
+      <div class="chip-group" id="chips-metodo">
+        <button class="chip active" onclick="selectChip(this,'metodo')">Pomodoro 25/5</button>
+        <button class="chip" onclick="selectChip(this,'metodo')">Libre</button>
+        <button class="chip" onclick="selectChip(this,'metodo')">90 min</button>
+      </div>
+    </div>
+    <div class="config-divider"></div>
+    <div class="config-row-item">
+      <div class="config-row-label">
+        Ambiente sonoro
+        <span class="rf-mini">RF6</span>
+      </div>
+      <div class="chip-group" id="chips-audio">
+        <button class="chip active" onclick="selectChip(this,'audio')">Silencio</button>
+        <button class="chip" onclick="selectChip(this,'audio')">Lo-fi</button>
+        <button class="chip" onclick="selectChip(this,'audio')">Naturaleza</button>
+      </div>
+    </div>
+    <div class="config-divider"></div>
+    <div class="config-row-item">
+      <div class="config-row-label">
+        Bloqueo digital
+        <span class="rf-mini">RF1</span>
+      </div>
+      <div class="chip-group" id="chips-bloqueo">
+        <button class="chip active" onclick="selectChip(this,'bloqueo')">Activado</button>
+        <button class="chip" onclick="selectChip(this,'bloqueo')">Desactivado</button>
+      </div>
     </div>
   </div>
 
-  <!-- Escena A-Frame configurada para Meta Quest 3S -->
-  <a-scene 
-    webxr="optionalFeatures: passthrough, dom-overlay; overlayElement: #ar-hud"
-    renderer="alpha: true; colorManagement: true;"
-    background="transparent: true">
+  <div class="btn-start-wrap">
+    <button id="btn-start" onclick="startSession()">▶ &nbsp; Iniciar Sesión</button>
+    <div class="btn-rf">RF2 · Ritual de inicio</div>
+  </div>
 
-    <a-assets>
-      <!-- Aquí cargarás tu modelo .glb del robot más adelante -->
-      <img id="asistente-img" src="https://cdn.glitch.global/60d0e6ff-4860-40c0-b0d4-ffcc88443355/astronauta.png?v=1">
-    </a-assets>
+</div>
 
-    <!-- Contenido Holográfico (Asistente) -->
-    <a-entity id="anchor-asistente" position="-0.5 1.1 -0.7">
-      <a-image src="#asistente-img" width="0.25" height="0.25"></a-image>
-      <!-- Aura de estado animada -->
-      <a-torus radius="0.1" radius-tubular="0.005" rotation="90 0 0" color="#00e6ff"
-               animation="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; dir: alternate; dur: 2000; loop: true">
-      </a-torus>
-    </a-entity>
+<!-- ══════════════════════════════════════════════════
+     AR OVERLAY
+══════════════════════════════════════════════════ -->
+<div id="ar-overlay">
 
-    <!-- Iluminación para integrar los hologramas -->
-    <a-light type="ambient" intensity="0.7"></a-light>
-    <a-light type="directional" position="1 2 1" intensity="0.5"></a-light>
+  <div id="distractor-overlay"></div>
+  <div id="focus-zone">
+    <div id="fz-label">ZONA DE ENFOQUE · RF3</div>
+  </div>
 
-    <!-- Cámara optimizada para AR -->
-    <a-camera position="0 1.6 0">
-      <a-cursor color="#00e6ff" scale="0.5 0.5 0.5"></a-cursor>
-    </a-camera>
+  <!-- Pomodoro HUD -->
+  <div id="hud-pomodoro">
+    <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
+      <span class="rf-badge">RF2 · RF5</span>
+      <div class="pomo-phase" id="pomo-phase">ENFOQUE</div>
+    </div>
+    <div class="pomo-time" id="pomo-time">25:00</div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+      <div class="pomo-dots">
+        <div class="pomo-dot" id="dot-0"></div>
+        <div class="pomo-dot" id="dot-1"></div>
+        <div class="pomo-dot" id="dot-2"></div>
+        <div class="pomo-dot" id="dot-3"></div>
+      </div>
+      <div style="font-size:7px;color:rgba(0,230,255,0.25);letter-spacing:1.5px">POMODOROS</div>
+    </div>
+  </div>
 
-    <!-- Entorno virtual que solo se ve fuera de AR -->
-    <a-sky id="sky-vr" color="#050505"></a-sky>
+  <!-- Progress RNF1 -->
+  <div id="hud-progress">
+    <span class="rf-badge">RNF1</span>
+    <div class="prog-title">Progreso de Sesión</div>
+    <div class="prog-bar-bg"><div class="prog-bar-fill" id="prog-fill"></div></div>
+    <div class="prog-row">Completado <strong><span id="prog-pct">0</span>%</strong></div>
+    <div class="prog-row" style="margin-top:2px">Pomodoros <strong><span id="prog-count">0</span>/4</strong></div>
+  </div>
 
-  </a-scene>
+  <!-- Env indicator -->
+  <div id="env-indicator">
+    <div class="env-dot" id="env-dot"></div>
+    <div class="env-label" id="env-label">Espacio</div>
+  </div>
 
-  <script>
-    const sceneEl = document.querySelector('a-scene');
-    const hud = document.getElementById('ar-hud');
-    const sky = document.getElementById('sky-vr');
+  <!-- Sensory RF6 RNF3 -->
+  <button id="sensory-toggle" onclick="toggleSensory()" title="Control Sensorial">⚙️</button>
+  <div id="hud-sensory" class="collapsed">
+    <span class="rf-badge" style="text-align:center">RF6 · RNF3</span>
+    <div class="sens-head">Control Sensorial</div>
+    <div class="sens-row">
+      <div class="sens-lbl">Iluminación <strong id="v-lux">60%</strong></div>
+      <input type="range" class="s-slider" value="60" oninput="document.getElementById('v-lux').textContent=this.value+'%'">
+    </div>
+    <div class="sens-row">
+      <div class="sens-lbl">Volumen <strong id="v-vol">40%</strong></div>
+      <input type="range" class="s-slider" value="40" oninput="document.getElementById('v-vol').textContent=this.value+'%'">
+    </div>
+    <div class="sens-row">
+      <div class="sens-lbl">Overlay <strong id="v-ov">70%</strong></div>
+      <input type="range" class="s-slider" value="70" oninput="setOverlay(this.value)">
+    </div>
+    <div class="tog-row">
+      <span>Bloqueo digital</span>
+      <div class="toggle on" onclick="toggleFunc(this,'bloqueo')"></div>
+    </div>
+    <div class="tog-row">
+      <span>Zona enfoque</span>
+      <div class="toggle on" onclick="toggleFunc(this,'zona')"></div>
+    </div>
+    <div class="tog-row">
+      <span>Pausas <span style="font-size:8px;color:rgba(0,230,255,0.4)">RF4</span></span>
+      <div class="toggle on" onclick="toggleFunc(this,'pausas')"></div>
+    </div>
+  </div>
 
-    // Gestión automática del Passthrough en Quest 3S
-    sceneEl.addEventListener('enter-vr', () => {
-      if (sceneEl.is('ar-mode')) {
-        hud.style.display = 'block';
-        sky.setAttribute('visible', 'false'); // Apaga el fondo negro para ver tu habitación
-        console.log("Iniciando Realidad Mixta: Passthrough activado.");
-      }
-    });
+  <!-- Break alert RF4 -->
+  <div id="hud-break">
+    <div style="font-size:22px">🌿</div>
+    <span class="rf-badge">RF4</span>
+    <div class="break-msg">¡Hora de una pausa activa!</div>
+    <div class="break-sub">Retira el visor · Estira 5 minutos</div>
+  </div>
 
-    sceneEl.addEventListener('exit-vr', () => {
-      hud.style.display = 'none';
-      sky.setAttribute('visible', 'true');
-    });
+  <!-- Status bar -->
+  <div id="hud-status">
+    <div class="st-pill"><div class="st-dot g"></div>Concentración activa</div>
+    <div class="st-pill"><div class="st-dot y"></div><span id="elapsed">00:00</span></div>
+    <div class="st-pill"><span class="rf-badge" style="margin:0">RNF2</span>Meta Quest 3</div>
+  </div>
 
-    // Lógica del Timer (Pomodoro)
-    let seconds = 25 * 60;
-    const timerDisplay = document.getElementById('timer');
+  <div id="hint-text">Arrastrar para mirar · WASD para mover</div>
 
-    setInterval(() => {
-      if (sceneEl.is('ar-mode') && seconds > 0) {
-        seconds--;
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const s = (seconds % 60).toString().padStart(2, '0');
-        timerDisplay.textContent = `${m}:${s}`;
-      }
-    }, 1000);
-  </script>
+</div>
+
+<!-- PAUSE -->
+<div id="screen-pause">
+  <div class="pause-emoji">☕</div>
+  <span class="rf-badge">RF4 · Reducción de fatiga física</span>
+  <div class="pause-title">Pausa Activa</div>
+  <div class="pause-sub">Retira el visor y descansa</div>
+  <div class="pause-big" id="pause-time">05:00</div>
+  <button class="btn-resume" onclick="resumeSession()">↩ Continuar sesión</button>
+</div>
+
+<!-- TRANSITION -->
+<div id="transition-overlay"></div>
+
+<!-- ══ AR MODE INFO (visible al abrir en navegador) ══ -->
+<div id="ar-info">
+  <div class="ar-info-title">🥽 Modo AR — Quest 3</div>
+  <div class="ar-info-body">
+    En modo <strong>AR Passthrough</strong>, la cámara del Quest 3 muestra tu
+    <strong>escritorio real</strong>. El astronauta y los paneles
+    se proyectan encima como hologramas.<br><br>
+    Dentro del visor presiona <strong>"Enter AR"</strong> cuando cargue la página.
+  </div>
+</div>
+<button id="ar-mode-btn" class="show" onclick="toggleArInfo()">
+  🥽 &nbsp;Modo AR — Quest 3
+</button>
+
+<!-- ══════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════ -->
+<script>
+// ── Config por ambiente ──
+const ENV_CONFIG = {
+  espacio: {
+    bg: '#000510', fog: '#000015', fogDensity: 0.02,
+    ambient: '#080818', ambientInt: 0.5,
+    dir: '#6080ff', dirInt: 0.4,
+    lamp: '#a0b0ff', win: '#4060c0',
+    backWall: '#050510',
+    dotClass: 'espacio', label: '🌌 Espacio'
+  },
+  bosque: {
+    bg: '#0a0d14', fog: '#0a0d14', fogDensity: 0.04,
+    ambient: '#1a2a1a', ambientInt: 0.7,
+    dir: '#a0c8ff', dirInt: 0.6,
+    lamp: '#ffcc88', win: '#b0d4ff',
+    backWall: '#1c2030',
+    dotClass: 'bosque', label: '🌲 Bosque'
+  },
+  biblioteca: {
+    bg: '#1a0f05', fog: '#1a0a02', fogDensity: 0.05,
+    ambient: '#3a2010', ambientInt: 0.9,
+    dir: '#ffcc80', dirInt: 0.35,
+    lamp: '#ffaa40', win: '#ffbb60',
+    backWall: '#2a1a08',
+    dotClass: 'biblioteca', label: '📚 Biblioteca'
+  }
+};
+
+let state = {
+  env: 'espacio',
+  phase: 'focus',
+  secondsLeft: 25 * 60,
+  pomosCompleted: 0,
+  totalPomos: 4,
+  sessionElapsed: 0,
+  running: false,
+  distractorActive: true,
+  focusZoneActive: true,
+  pausasActive: true,
+  ticker: null,
+  elapsedTicker: null,
+  pauseSeconds: 5 * 60,
+  pauseTicker: null
+};
+
+// ── Environment selection ──
+function selectEnv(card) {
+  document.querySelectorAll('.env-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  state.env = card.dataset.env;
+}
+
+// ── Chip selector ──
+function selectChip(el, group) {
+  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Apply environment to A-Frame scene ──
+function applyEnvironment(env) {
+  const cfg = ENV_CONFIG[env];
+  const scene = document.getElementById('main-scene');
+
+  // Background + fog
+  scene.setAttribute('background', `color: ${cfg.bg}`);
+  scene.setAttribute('fog', `type: exponential; color: ${cfg.fog}; density: ${cfg.fogDensity}`);
+
+  // Lighting
+  document.getElementById('light-ambient').setAttribute('color', cfg.ambient);
+  document.getElementById('light-ambient').setAttribute('intensity', cfg.ambientInt);
+  document.getElementById('light-dir').setAttribute('color', cfg.dir);
+  document.getElementById('light-dir').setAttribute('intensity', cfg.dirInt);
+  document.getElementById('light-lamp').setAttribute('color', cfg.lamp);
+  document.getElementById('light-win').setAttribute('color', cfg.win);
+
+  // Back wall
+  document.getElementById('back-wall').setAttribute('color', cfg.backWall);
+
+  // Show/hide environment groups
+  ['bosque','espacio','biblioteca'].forEach(e => {
+    document.getElementById('env-' + e).setAttribute('visible', e === env);
+  });
+
+  // Update env indicator in AR overlay
+  const dot = document.getElementById('env-dot');
+  dot.className = 'env-dot ' + cfg.dotClass;
+  document.getElementById('env-label').textContent = cfg.label;
+}
+
+// ── Start session ──
+function startSession() {
+  const overlay = document.getElementById('transition-overlay');
+  overlay.classList.add('fade-in');
+
+  setTimeout(() => {
+    applyEnvironment(state.env);
+    document.getElementById('screen-inicio').style.display = 'none';
+    document.getElementById('ar-overlay').style.display = 'block';
+    document.getElementById('distractor-overlay').classList.add('active');
+    document.getElementById('focus-zone').classList.add('active');
+    // Show gear button, keep sensory panel collapsed
+    document.getElementById('sensory-toggle').classList.add('show');
+
+    overlay.classList.remove('fade-in');
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.classList.remove('fade-out'), 500);
+
+    state.running = true;
+    startTicker();
+    startElapsed();
+  }, 480);
+}
+
+// ── Sensory panel toggle ──
+let sensoryOpen = false;
+function toggleSensory() {
+  sensoryOpen = !sensoryOpen;
+  document.getElementById('hud-sensory').classList.toggle('collapsed', !sensoryOpen);
+  const btn = document.getElementById('sensory-toggle');
+  btn.textContent = sensoryOpen ? '✕' : '⚙️';
+  btn.style.right = sensoryOpen ? '208px' : '28px';
+}
+
+// ── Timer logic ──
+function startTicker() {
+  clearInterval(state.ticker);
+  state.ticker = setInterval(() => {
+    if (!state.running) return;
+    state.secondsLeft--;
+    updateTimerUI();
+    if (state.secondsLeft <= 0) phaseEnd();
+  }, 1000);
+}
+
+function phaseEnd() {
+  clearInterval(state.ticker);
+  if (state.phase === 'focus') {
+    state.pomosCompleted = Math.min(state.pomosCompleted + 1, state.totalPomos);
+    markDot(state.pomosCompleted - 1);
+    updateProgress();
+    if (state.pausasActive) { state.running = false; enterBreak(); }
+    else startNextFocus();
+  } else {
+    resumeSession();
+  }
+}
+
+function enterBreak() {
+  state.phase = 'break';
+  state.pauseSeconds = 5 * 60;
+  document.getElementById('screen-pause').classList.add('visible');
+  document.getElementById('hud-break').classList.add('visible');
+  updatePauseUI();
+  state.pauseTicker = setInterval(() => {
+    state.pauseSeconds--;
+    updatePauseUI();
+    if (state.pauseSeconds <= 0) {
+      clearInterval(state.pauseTicker);
+      document.getElementById('screen-pause').classList.remove('visible');
+      resumeSession();
+    }
+  }, 1000);
+}
+
+function resumeSession() {
+  clearInterval(state.pauseTicker);
+  document.getElementById('screen-pause').classList.remove('visible');
+  document.getElementById('hud-break').classList.remove('visible');
+  startNextFocus();
+}
+
+function startNextFocus() {
+  state.phase = 'focus';
+  state.secondsLeft = 25 * 60;
+  state.running = true;
+  updateTimerUI();
+  startTicker();
+}
+
+// ── UI updates ──
+function updateTimerUI() {
+  const m = Math.floor(state.secondsLeft / 60).toString().padStart(2,'0');
+  const s = (state.secondsLeft % 60).toString().padStart(2,'0');
+  const el = document.getElementById('pomo-time');
+  el.textContent = `${m}:${s}`;
+  el.classList.toggle('urgent', state.secondsLeft < 120 && state.phase === 'focus');
+  document.getElementById('pomo-phase').textContent = state.phase === 'focus' ? 'ENFOQUE' : 'PAUSA';
+}
+
+function updatePauseUI() {
+  const m = Math.floor(state.pauseSeconds / 60).toString().padStart(2,'0');
+  const s = (state.pauseSeconds % 60).toString().padStart(2,'0');
+  document.getElementById('pause-time').textContent = `${m}:${s}`;
+}
+
+function markDot(i) {
+  const d = document.getElementById('dot-' + i);
+  if (d) d.classList.add('done');
+}
+
+function updateProgress() {
+  const pct = Math.round((state.pomosCompleted / state.totalPomos) * 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct;
+  document.getElementById('prog-count').textContent = state.pomosCompleted;
+}
+
+function startElapsed() {
+  state.elapsedTicker = setInterval(() => {
+    state.sessionElapsed++;
+    const m = Math.floor(state.sessionElapsed / 60).toString().padStart(2,'0');
+    const s = (state.sessionElapsed % 60).toString().padStart(2,'0');
+    document.getElementById('elapsed').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ── Toggles / controls ──
+function toggleFunc(el, type) {
+  el.classList.toggle('on');
+  const on = el.classList.contains('on');
+  if (type === 'bloqueo') {
+    state.distractorActive = on;
+    document.getElementById('distractor-overlay').classList.toggle('active', on);
+  }
+  if (type === 'zona') {
+    state.focusZoneActive = on;
+    document.getElementById('focus-zone').classList.toggle('active', on);
+  }
+  if (type === 'pausas') state.pausasActive = on;
+}
+
+function setOverlay(val) {
+  document.getElementById('v-ov').textContent = val + '%';
+  document.getElementById('distractor-overlay').style.background =
+    `rgba(0,2,12,${val / 170})`;
+}
+
+// ── AR / Passthrough mode ──
+function toggleArInfo() {
+  const info = document.getElementById('ar-info');
+  info.classList.toggle('show');
+}
+
+// Entidades del cuarto virtual (se ocultan en AR passthrough)
+const ROOM_IDS = ['back-wall', 'env-bosque', 'env-espacio', 'env-biblioteca'];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.getElementById('main-scene');
+
+  // Detectar modo AR (passthrough real)
+  scene.addEventListener('enter-vr', () => {
+    const xrSession = scene.xrSession;
+    if (xrSession && xrSession.environmentBlendMode === 'alpha-blend') {
+      // Modo AR real en Quest 3 — ocultar entorno virtual, mostrar solo desk + astro
+      enterARPassthrough();
+    }
+  });
+
+  scene.addEventListener('exit-vr', () => {
+    exitARPassthrough();
+  });
+});
+
+function enterARPassthrough() {
+  // Ocultar cielo y entornos virtuales — el passthrough muestra el mundo real
+  const scene = document.getElementById('main-scene');
+  scene.setAttribute('background', 'transparent: true');
+  ROOM_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('visible', false);
+  });
+  // Ocultar el visor frame (no necesario en AR real)
+  document.getElementById('visor-frame').style.display = 'none';
+  // Mostrar hint actualizado
+  const hint = document.getElementById('hint-text');
+  if (hint) hint.textContent = 'Modo AR Passthrough activo · Mira tu escritorio real';
+}
+
+function exitARPassthrough() {
+  const scene = document.getElementById('main-scene');
+  scene.setAttribute('background', `color: ${ENV_CONFIG[state.env]?.bg || '#0a0d14'}`);
+  document.getElementById('visor-frame').style.display = 'block';
+}
+</script>
 </body>
 </html>
