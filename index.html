@@ -3,179 +3,207 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entorno de Estudio — Propuesta Final P3</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.5.0/aframe.min.js"></script>
+  <title>Entorno de Estudio — Master P3</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700;800&display=swap');
 
     :root {
       --cyan: #00e6ff;
-      --cyan-dim: rgba(0,230,255,0.15);
-      --cyan-border: rgba(0,230,255,0.35);
-      --glass: rgba(6,12,30,0.78);
+      --glass: rgba(6, 12, 30, 0.8);
+      --glass-dark: rgba(2, 5, 18, 0.95);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Outfit', sans-serif; overflow: hidden; background: #000; }
-    a-scene { width: 100vw; height: 100vh; }
+    body { font-family: 'Outfit', sans-serif; overflow: hidden; background: #000; color: white; }
 
-    /* ═══════════════════════════════════════
-       VISOR FRAME & UI (De tu código original)
-    ═══════════════════════════════════════ */
-    #visor-frame { position: fixed; inset: 0; pointer-events: none; z-index: 10; border-radius: 32px; box-shadow: inset 0 0 120px rgba(0,0,0,0.5); }
-    #visor-frame::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 85% 90% at 50% 50%, transparent 58%, rgba(0,0,0,0.65) 82%, rgba(0,0,0,0.97) 100%); border-radius: 32px; }
+    /* ─── BARRA SUPERIOR (Batería/Señal) ─── */
+    .top-bar {
+      position: fixed; top: 20px; width: 100%; display: flex; 
+      justify-content: center; gap: 30px; z-index: 150;
+      font-family: 'Share Tech Mono', monospace; font-size: 12px; opacity: 0.6;
+    }
 
-    #screen-inicio { position: fixed; inset: 0; z-index: 100; background: rgba(2,5,18,0.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; backdrop-filter: blur(16px); overflow-y: auto; padding: 24px 0; }
-    .app-badge { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    .app-eyebrow { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 5px; text-transform: uppercase; color: rgba(0,230,255,0.4); }
-    .app-name { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
-    .app-name em { color: var(--cyan); font-style: normal; }
-    
-    /* Config boxes, chips, buttons... (Mantenidos de tu código original) */
-    .env-grid { display: flex; gap: 14px; }
-    .env-card { width: 174px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.06); cursor: pointer; overflow: hidden; position: relative; transition: all .25s; }
-    .env-card.selected { border-color: var(--cyan); box-shadow: 0 0 28px rgba(0,230,255,0.2); }
-    .env-info { padding: 12px; background: rgba(0,0,0,0.5); color: white; }
-    .config-box { width: 560px; background: rgba(0,230,255,0.03); border: 1px solid rgba(0,230,255,0.12); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-    .chip { padding: 5px 13px; border-radius: 20px; font-size: 11px; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.35); cursor: pointer; background: transparent; }
-    .chip.active { background: rgba(0,230,255,0.12); border-color: var(--cyan); color: var(--cyan); }
-    #btn-start { background: linear-gradient(135deg, rgba(0,230,255,0.22), rgba(0,160,255,0.12)); border: 1.5px solid var(--cyan); color: var(--cyan); padding: 15px 56px; border-radius: 10px; cursor: pointer; width: 560px; font-weight: 700; letter-spacing: 4px; }
+    /* ─── PANTALLA DE INICIO ─── */
+    #screen-inicio {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--glass-dark);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(25px); transition: 0.8s ease;
+    }
 
-    /* Overlay HUDs (Mantenidos de tu código original) */
-    #ar-overlay { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: none; }
-    #hud-pomodoro { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); background: var(--glass); border: 1px solid var(--cyan-border); border-radius: 50px; padding: 10px 32px; display: flex; align-items: center; gap: 22px; backdrop-filter: blur(12px); }
-    .pomo-time { font-family: 'Share Tech Mono', monospace; font-size: 34px; color: #fff; letter-spacing: 5px; }
-    #hud-progress { position: absolute; top: 28px; left: 32px; background: var(--glass); border: 1px solid rgba(0,230,255,0.22); border-radius: 14px; padding: 14px; min-width: 186px; }
-    .prog-bar-fill { height: 4px; background: var(--cyan); transition: width 1s; width: 0%; }
-    
-    /* Transition Overlay */
-    #transition-overlay { position: fixed; inset: 0; z-index: 200; background: #000; opacity: 0; pointer-events: none; transition: opacity .5s; }
-    #transition-overlay.fade-in { opacity: 1; }
+    .main-container {
+      width: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    }
+
+    .left-panel { display: flex; flex-direction: column; gap: 20px; }
+    .right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+    .app-title h1 { font-size: 52px; font-weight: 800; line-height: 1; }
+    .app-title em { color: var(--cyan); font-style: normal; }
+
+    .stat-box {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      padding: 20px; border-radius: 20px;
+    }
+    .stat-value { font-family: 'Share Tech Mono', monospace; font-size: 32px; color: var(--cyan); }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; }
+
+    .task-card {
+      background: linear-gradient(135deg, rgba(0,230,255,0.1), transparent);
+      border-left: 4px solid var(--cyan); padding: 25px; border-radius: 0 20px 20px 0;
+    }
+
+    #btn-start {
+      background: var(--cyan); color: #000; border: none; padding: 20px;
+      border-radius: 15px; font-weight: 800; font-size: 16px; cursor: pointer;
+      text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 10px 30px rgba(0,230,255,0.3);
+    }
+
+    /* ─── INTERFAZ DE SESIÓN (HUD) ─── */
+    #hud-session {
+      position: fixed; inset: 0; z-index: 50; display: none; pointer-events: none;
+    }
+
+    .side-panel {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 280px; height: 60vh; background: var(--glass);
+      border: 1px solid rgba(0,230,255,0.2); border-radius: 30px;
+      padding: 30px; backdrop-filter: blur(10px);
+    }
+    .panel-left { left: 40px; }
+    .panel-right { right: 40px; }
+
+    .timer-circle {
+      position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
+      text-align: center; background: var(--glass); padding: 20px 50px;
+      border-radius: 100px; border: 1px solid var(--cyan);
+    }
+    .timer-text { font-family: 'Share Tech Mono', monospace; font-size: 48px; }
+
+    #fade { position: fixed; inset: 0; z-index: 200; background: #000; opacity: 0; pointer-events: none; transition: 0.5s; }
   </style>
 </head>
 <body>
 
-<div id="transition-overlay"></div>
+<div id="fade"></div>
 
-<a-scene id="main-scene" renderer="antialias: true; colorManagement: true;">
+<div class="top-bar">
+  <span>PWR: 88%</span>
+  <span>WIFI: UTM_GUEST</span>
+  <span>12:45 PM</span>
+</div>
+
+<div id="screen-inicio">
+  <div class="main-container">
+    <div class="left-panel">
+      <div class="app-title">
+        <p style="font-size:12px; letter-spacing:5px; opacity:0.5">MAESTRÍA MEDIOS INTERACTIVOS</p>
+        <h1>Entorno de<br><em>Estudio</em></h1>
+      </div>
+      <div class="task-card">
+        <p style="font-size:10px; opacity:0.6; margin-bottom:5px">TAREA SELECCIONADA</p>
+        <p style="font-size:18px; font-weight:600">Escritura de Tesis: Capítulo 3</p>
+      </div>
+      <button id="btn-start" onclick="iniciarExperiencia()">Iniciar Sesión</button>
+    </div>
+
+    <div class="right-panel">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px">
+        <div class="stat-box">
+          <div class="stat-value">04</div>
+          <div class="stat-label">Sesiones</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">120m</div>
+          <div class="stat-label">Enfoque</div>
+        </div>
+      </div>
+      <div class="stat-box" style="flex-grow:1">
+        <p class="stat-label">PROGRESO SEMANAL</p>
+        <div style="height:100px; display:flex; align-items:flex-end; gap:10px; margin-top:20px">
+          <div style="flex:1; height:40%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
+          <div style="flex:1; height:70%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
+          <div style="flex:1; height:90%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
+          <div style="flex:1; height:60%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="hud-session">
+  <div class="timer-circle">
+    <div class="timer-text" id="timer">25:00</div>
+    <p style="font-size:10px; letter-spacing:3px; color:var(--cyan)">FOCUS MODE</p>
+  </div>
+
+  <div class="side-panel panel-left">
+    <h3 style="color:var(--cyan); margin-bottom:20px; font-size:14px">MÉTRICAS</h3>
+    <div style="margin-bottom:20px">
+      <p style="font-size:10px; opacity:0.5">ESTADO ACTUAL</p>
+      <p>Concentración Alta</p>
+    </div>
+    <div>
+      <p style="font-size:10px; opacity:0.5">RITMO CARDIACO</p>
+      <p style="font-family:'Share Tech Mono'">72 BPM</p>
+    </div>
+  </div>
+
+  <div class="side-panel panel-right">
+    <h3 style="color:var(--cyan); margin-bottom:20px; font-size:14px">ASISTENTE</h3>
+    <p style="font-size:13px; line-height:1.6; opacity:0.8">"Luis, vas por buen camino. Has mantenido el enfoque por 15 minutos seguidos."</p>
+  </div>
+</div>
+
+<a-scene renderer="antialias: true" vr-mode-ui="enabled: true">
   <a-assets>
-    <img id="fondo-bosque" src="fondo-bosque.jpg" crossorigin="anonymous">
-    <img id="asistente-img" src="Gemini_Generated_Image_5fj6ln5fj6ln5fj6.png" crossorigin="anonymous">
+    <img id="bosque" src="fondo-bosque.jpg">
+    <img id="robot-img" src="Gemini_Generated_Image_5fj6ln5fj6ln5fj6.png">
   </a-assets>
 
-  <a-sky id="sky-env" src="#fondo-bosque" rotation="0 -90 0"></a-sky>
+  <a-sky src="#bosque" rotation="0 -90 0"></a-sky>
 
-  <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
-  <a-light type="directional" position="-1 2 1" intensity="0.5"></a-light>
-
-  <a-entity id="working-area" position="0 0 -1.5">
-    <a-box position="0 0.75 0" width="2.5" height="0.05" depth="1" color="#3d2b1a"></a-box>
+  <a-entity position="0 0 -1.5">
+    <a-box position="0 0.7 0" width="2.2" height="0.06" depth="0.9" color="#4b3621"></a-box>
     
-    <a-entity position="0 0.78 0">
-      <a-box width="0.6" height="0.02" depth="0.4" color="#222"></a-box>
-      <a-box position="0 0.2 -0.2" rotation="-20 0 0" width="0.6" height="0.4" depth="0.02" color="#333">
-        <a-plane position="0 0 0.011" width="0.55" height="0.35" color="#001a33"></a-plane>
+    <a-entity position="0 0.73 0">
+      <a-box width="0.5" height="0.02" depth="0.35" color="#1a1a1a"></a-box>
+      <a-box position="0 0.18 -0.17" rotation="-25 0 0" width="0.5" height="0.35" depth="0.02" color="#222">
+        <a-plane position="0 0 0.011" width="0.47" height="0.32" color="#000"></a-plane>
       </a-box>
     </a-entity>
 
-    <a-entity id="asistente" position="-0.8 1.1 0" 
-              animation="property: position; to: -0.8 1.15 0; dur: 2000; dir: alternate; loop: true; easing: easeInOutSine">
-      <a-image src="#asistente-img" width="0.4" height="0.4"></a-image>
-      <a-light type="point" intensity="0.3" distance="1" color="#00e6ff" position="0 -0.2 0.1"></a-light>
-    </a-entity>
+    <a-image src="#robot-img" position="-0.8 1.1 0" width="0.4" height="0.4"
+             animation="property: position; to: -0.8 1.15 0; dur: 1500; dir: alternate; loop: true"></a-image>
   </a-entity>
 
-  <a-camera position="0 1.6 0" look-controls wasd-controls="acceleration: 20"></a-camera>
+  <a-camera position="0 1.6 0"></a-camera>
 </a-scene>
 
-<div id="visor-frame"></div>
-
-<div id="screen-inicio">
-  <div class="app-badge">
-    <div class="app-eyebrow">UTM · Maestría en Medios Interactivos · P3</div>
-    <div class="app-name">Entorno de <em>Estudio</em></div>
-    <div class="app-sub">Prototipo Realidad Mixta · Meta Quest 3</div>
-  </div>
-
-  <div class="env-grid">
-    <div class="env-card selected" onclick="selectEnv(this)">
-      <div style="height:100px; background: url('fondo-bosque.jpg'); background-size: cover;"></div>
-      <div class="env-info">
-        <div style="font-weight:700">🌲 Bosque</div>
-        <div style="font-size:10px; opacity:0.6">Tu entorno personalizado.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="config-box">
-    <div style="display:flex; justify-content:space-between; align-items:center">
-      <span style="color:rgba(255,255,255,0.5); font-size:11px">Método Pomodoro</span>
-      <div class="chip-group">
-        <button class="chip active">25/5 min</button>
-        <button class="chip">Libre</button>
-      </div>
-    </div>
-  </div>
-
-  <button id="btn-start" onclick="startSession()">▶ INICIAR SESIÓN</button>
-</div>
-
-<div id="ar-overlay">
-  <div id="hud-pomodoro">
-    <div class="pomo-time" id="pomo-time">25:00</div>
-    <div style="color:var(--cyan); font-size:10px; letter-spacing:2px">ENFOQUE</div>
-  </div>
-
-  <div id="hud-progress">
-    <div style="color:white; font-size:9px; margin-bottom:8px">PROGRESO DE SESIÓN</div>
-    <div style="background:rgba(255,255,255,0.1); height:4px; border-radius:2px">
-      <div id="prog-fill" class="prog-bar-fill" style="width: 0%"></div>
-    </div>
-  </div>
-
-  <div style="position:absolute; bottom:20px; left:20px; color:white; font-size:10px; background:var(--glass); padding:8px; border-radius:5px">
-    ● Concentración activa | <span id="timer-run">00:00</span>
-  </div>
-</div>
-
 <script>
-  let sessionTime = 0;
-  let timerInterval;
-
-  function startSession() {
-    const trans = document.getElementById('transition-overlay');
-    trans.classList.add('fade-in');
+  function iniciarExperiencia() {
+    document.getElementById('fade').style.opacity = '1';
     
     setTimeout(() => {
-      document.getElementById('screen-inicio').style.display = 'none';
-      document.getElementById('ar-overlay').style.display = 'block';
-      trans.classList.remove('fade-in');
+      document.getElementById('screen-inicio').style.opacity = '0';
+      setTimeout(() => document.getElementById('screen-inicio').style.display = 'none', 800);
       
-      // Iniciar contadores
-      startTimer();
+      document.getElementById('hud-session').style.display = 'block';
+      document.getElementById('fade').style.opacity = '0';
+      
+      startTimer(25 * 60);
     }, 600);
   }
 
-  function startTimer() {
-    let timeLeft = 25 * 60;
-    timerInterval = setInterval(() => {
-      sessionTime++;
-      timeLeft--;
-      
-      // Update Pomodoro
-      let mins = Math.floor(timeLeft / 60);
-      let secs = timeLeft % 60;
-      document.getElementById('pomo-time').textContent = 
-        `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-      
-      // Update session clock
-      let sMins = Math.floor(sessionTime / 60);
-      let sSecs = sessionTime % 60;
-      document.getElementById('timer-run').textContent = 
-        `${sMins.toString().padStart(2,'0')}:${sSecs.toString().padStart(2,'0')}`;
-
-      // Update bar (simulación)
-      document.getElementById('prog-fill').style.width = (sessionTime / 15) + "%";
+  function startTimer(duration) {
+    let timer = duration, minutes, seconds;
+    const display = document.getElementById('timer');
+    setInterval(() => {
+      minutes = parseInt(timer / 60, 10);
+      seconds = parseInt(timer % 60, 10);
+      display.textContent = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
+      if (--timer < 0) timer = 0;
     }, 1000);
   }
 </script>
