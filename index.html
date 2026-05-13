@@ -3,45 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entorno de Estudio — P3</title>
+  <title>Entorno de Estudio Inmersivo — P3</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
 
-    :root { --cyan: #00e6ff; --glass: rgba(6,12,30,0.85); }
     body { margin: 0; font-family: 'Outfit', sans-serif; overflow: hidden; background: #000; }
     
-    /* Pantalla de inicio que cubre la escena al principio */
+    /* Pantalla de inicio para evitar distracciones iniciales */
     #screen-inicio {
       position: fixed; inset: 0; z-index: 100;
-      background: rgba(2,5,18,0.95);
+      background: rgba(2,5,18,0.9);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 20px; backdrop-filter: blur(15px); color: white;
+      gap: 20px; backdrop-filter: blur(10px); color: white;
+      transition: opacity 0.5s ease;
     }
 
     .btn-start {
-      background: transparent; border: 2px solid var(--cyan);
-      color: var(--cyan); padding: 15px 40px; font-weight: bold;
+      background: transparent; border: 2px solid #00e6ff;
+      color: #00e6ff; padding: 15px 40px; font-weight: bold;
       text-transform: uppercase; cursor: pointer; border-radius: 8px;
+      font-size: 1.1rem;
     }
-    
-    #ar-overlay { display: none; pointer-events: none; }
+
+    .btn-start:hover { background: rgba(0, 230, 255, 0.1); }
   </style>
 </head>
 <body>
 
 <div id="screen-inicio">
-  <h1>ENTORNO DE ESTUDIO</h1>
-  <p>Prototipo para Meta Quest 3</p>
-  <button class="btn-start" onclick="startSession()">Iniciar Sesión</button>
+  <h1 style="letter-spacing: 2px;">ENTORNO DE ESTUDIO</h1>
+  <p>Enfoque Inmersivo en el Bosque</p>
+  <button class="btn-start" onclick="startSession()">Entrar al Entorno</button>
 </div>
 
-<a-scene renderer="antialias: true" shadow="type: pcfsoft">
+<a-scene renderer="antialias: true; colorManagement: true;">
   
-  <a-light type="ambient" color="#404040"></a-light>
-  <a-light type="directional" position="1 1 1" intensity="0.8"></a-light>
+  <a-assets>
+    <img id="bosque-hdri" src="fondo-bosque.jpg" crossorigin="anonymous">
+  </a-assets>
 
-  <a-entity id="escritorio" position="0 0 -2">
+  <a-sky id="sky" src="#bosque-hdri" rotation="0 -90 0"></a-sky>
+
+  <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+  <a-light type="directional" position="-1 2 1" intensity="0.5" color="#fffce1"></a-light>
+
+  <a-entity id="escritorio-virtual" position="0 0 -2">
+    
     <a-box position="0 0.75 0" width="2.5" height="0.05" depth="1" color="#3d2b1a"></a-box>
     <a-cylinder position="-1.1 0.37 0.4" radius="0.03" height="0.75" color="#222"></a-cylinder>
     <a-cylinder position="1.1 0.37 0.4" radius="0.03" height="0.75" color="#222"></a-cylinder>
@@ -49,32 +57,38 @@
     <a-entity position="0 0.78 0">
       <a-box width="0.6" height="0.02" depth="0.4" color="#222"></a-box>
       <a-box position="0 0.2 -0.2" rotation="-20 0 0" width="0.6" height="0.4" depth="0.02" color="#333">
-        <a-plane position="0 0 0.011" width="0.55" height="0.35" color="#001a33"></a-plane>
+        <a-plane position="0 0 0.011" width="0.55" height="0.35" color="#001a33" material="emissive: #001a33; emissiveIntensity: 0.5"></a-plane>
       </a-box>
     </a-entity>
 
-    <a-entity id="asistente" position="-0.8 0.9 0" animation="property: position; dur: 2000; from: -0.8 0.85 0; to: -0.8 0.95 0; dir: alternate; loop: true">
-      <a-box width="0.15" height="0.15" depth="0.15" color="#00e6ff" opacity="0.8"></a-box>
-      <a-sphere position="0 0.15 0" radius="0.05" color="white"></a-sphere>
-      <a-light type="point" intensity="0.5" distance="2" color="#00e6ff"></a-light>
+    <a-entity id="asistente-robot" position="-0.8 1 0" 
+              animation="property: position; to: -0.8 1.05 0; dur: 2000; dir: alternate; loop: true; easing: easeInOutSine">
+      
+      <a-sphere radius="0.12" color="#ffffff" material="roughness: 0.2">
+        <a-box position="0 0 0.09" width="0.15" height="0.06" depth="0.02" color="#00e6ff"></a-box>
+      </a-sphere>
+      
+      <a-light type="point" intensity="0.3" distance="1" color="#00e6ff" position="0 -0.2 0"></a-light>
     </a-entity>
+
   </a-entity>
 
-  <a-sky id="sky" color="#050510"></a-sky>
-  <a-plane rotation="-90 0 0" width="20" height="20" color="#111"></a-plane>
+  <a-plane rotation="-90 0 0" width="100" height="100" visible="false"></a-plane>
 
   <a-camera position="0 1.6 0"></a-camera>
+
 </a-scene>
 
 <script>
   function startSession() {
-    // Oculta la interfaz 2D para mostrar la escena de A-Frame
-    document.getElementById('screen-inicio').style.display = 'none';
+    // Desvanece y oculta la pantalla de inicio
+    const ui = document.getElementById('screen-inicio');
+    ui.style.opacity = '0';
+    setTimeout(() => {
+      ui.style.display = 'none';
+    }, 500);
     
-    // Cambia el color del cielo para simular "activación"
-    document.getElementById('sky').setAttribute('color', '#0a0a20');
-    
-    console.log("Sesión de estudio iniciada: Modo Inmersivo activo.");
+    console.log("Entorno de bosque activado. Buen estudio.");
   }
 </script>
 
