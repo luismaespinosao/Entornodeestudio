@@ -2,210 +2,896 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entorno de Estudio — Master P3</title>
+  <title>Entorno de Estudio — P3</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700;800&display=swap');
 
-    :root {
-      --cyan: #00e6ff;
-      --glass: rgba(6, 12, 30, 0.8);
-      --glass-dark: rgba(2, 5, 18, 0.95);
+    :root { --cyan:#00e6ff; --glass:rgba(6,12,30,0.82); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Outfit',sans-serif; overflow:hidden; background:#000; color:#fff; }
+
+    /* ══════════════════════════════════════════
+       REGLA DE ORO: todo overlay → pointer-events:none
+       Solo botones declarados → pointer-events:auto
+    ══════════════════════════════════════════ */
+
+    /* ── LENTE VISOR (siempre encima) ── */
+    #visor {
+      position:fixed; inset:0; z-index:10; pointer-events:none;
+      background:radial-gradient(ellipse 84% 92% at 50% 52%,
+        transparent 56%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.97) 93%);
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Outfit', sans-serif; overflow: hidden; background: #000; color: white; }
-
-    /* ─── BARRA SUPERIOR (Batería/Señal) ─── */
-    .top-bar {
-      position: fixed; top: 20px; width: 100%; display: flex; 
-      justify-content: center; gap: 30px; z-index: 150;
-      font-family: 'Share Tech Mono', monospace; font-size: 12px; opacity: 0.6;
+    /* ── BARRA SUPERIOR (estado del visor) ── */
+    #top-bar {
+      position:fixed; top:18px; width:100%; display:flex;
+      justify-content:center; gap:28px; z-index:30; pointer-events:none;
+      font-family:'Share Tech Mono',monospace; font-size:11px;
+      color:rgba(255,255,255,0.35); letter-spacing:2px;
     }
 
-    /* ─── PANTALLA DE INICIO ─── */
+    /* ══════════════════════════════════════════
+       PANTALLA DE INICIO
+    ══════════════════════════════════════════ */
     #screen-inicio {
-      position: fixed; inset: 0; z-index: 100;
-      background: var(--glass-dark);
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(25px); transition: 0.8s ease;
+      position:fixed; inset:0; z-index:100;
+      background:rgba(2,5,18,0.97);
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; gap:28px;
+      backdrop-filter:blur(20px);
     }
 
-    .main-container {
-      width: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    .s-eyebrow {
+      font-family:'Share Tech Mono',monospace; font-size:9px;
+      letter-spacing:5px; color:rgba(0,230,255,0.4); text-transform:uppercase;
+    }
+    .s-title { font-size:36px; font-weight:800; letter-spacing:-0.5px; }
+    .s-title em { color:var(--cyan); font-style:normal; }
+
+    /* Grid principal inicio */
+    .inicio-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:24px; width:780px;
     }
 
-    .left-panel { display: flex; flex-direction: column; gap: 20px; }
-    .right-panel { display: flex; flex-direction: column; gap: 20px; }
+    .i-left { display:flex; flex-direction:column; gap:16px; }
+    .i-right { display:flex; flex-direction:column; gap:16px; }
 
-    .app-title h1 { font-size: 52px; font-weight: 800; line-height: 1; }
-    .app-title em { color: var(--cyan); font-style: normal; }
-
-    .stat-box {
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
-      padding: 20px; border-radius: 20px;
+    .glass-box {
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:18px; padding:20px;
     }
-    .stat-value { font-family: 'Share Tech Mono', monospace; font-size: 32px; color: var(--cyan); }
-    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; }
-
     .task-card {
-      background: linear-gradient(135deg, rgba(0,230,255,0.1), transparent);
-      border-left: 4px solid var(--cyan); padding: 25px; border-radius: 0 20px 20px 0;
+      background:linear-gradient(135deg,rgba(0,230,255,0.08),transparent);
+      border-left:3px solid var(--cyan);
+      border-radius:0 16px 16px 0; padding:18px 20px;
+    }
+    .task-label { font-size:9px; letter-spacing:3px; color:rgba(0,230,255,0.5); text-transform:uppercase; margin-bottom:6px; }
+    .task-name { font-size:16px; font-weight:600; }
+
+    /* Stats row */
+    .stats-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .stat-b { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:14px; padding:16px; }
+    .stat-v { font-family:'Share Tech Mono',monospace; font-size:26px; color:var(--cyan); }
+    .stat-l { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.35); margin-top:2px; }
+
+    /* Mini chart */
+    .mini-chart { height:70px; display:flex; align-items:flex-end; gap:8px; margin-top:12px; }
+    .bar-c { flex:1; border-radius:4px 4px 0 0; background:rgba(0,230,255,0.6); }
+
+    /* ── Selección de ambiente ── */
+    .env-section-label {
+      font-family:'Share Tech Mono',monospace; font-size:8px;
+      letter-spacing:4px; color:rgba(255,255,255,0.25); text-transform:uppercase;
+      display:flex; align-items:center; gap:12px;
+    }
+    .env-section-label::before,.env-section-label::after {
+      content:''; flex:1; height:1px; background:rgba(255,255,255,0.06);
     }
 
+    .env-grid { display:flex; gap:12px; }
+    .env-card {
+      flex:1; border-radius:14px; border:2px solid rgba(255,255,255,0.07);
+      overflow:hidden; cursor:pointer; transition:all .22s;
+      pointer-events:auto;
+    }
+    .env-card:hover { border-color:rgba(255,255,255,0.2); transform:translateY(-2px); }
+    .env-card.sel { border-color:var(--cyan); box-shadow:0 0 20px rgba(0,230,255,0.15); }
+    .ec-prev { height:72px; position:relative; overflow:hidden; }
+    .ec-prev.espacio {
+      background:radial-gradient(ellipse at 50% 70%,#1a1060 0%,#050318 100%);
+    }
+    .ec-prev.bosque {
+      background:linear-gradient(to bottom,#4a7a30 0%,#2a5020 60%,#3d2b1a 100%);
+    }
+    .ec-prev.biblioteca {
+      background:linear-gradient(to bottom,#2a1a06 0%,#4a2e12 60%,#2a1408 100%);
+    }
+    /* Estrellas en la card espacio */
+    .star-dot { position:absolute; border-radius:50%; background:#fff; }
+    /* Libros en card biblioteca */
+    .book-strip { position:absolute; bottom:0; left:0; right:0; height:40px;
+      display:flex; align-items:flex-end; gap:2px; padding:0 8px; }
+    .bk { border-radius:2px 2px 0 0; }
+
+    .ec-check { position:absolute; top:8px; right:8px; width:18px; height:18px;
+      border-radius:50%; background:var(--cyan); display:none;
+      align-items:center; justify-content:center; font-size:10px; color:#000; font-weight:900; }
+    .env-card.sel .ec-check { display:flex; }
+    .ec-info { padding:10px 12px 12px; background:rgba(0,0,0,0.5); }
+    .ec-name { font-size:12px; font-weight:700; color:#fff; margin-bottom:2px; }
+    .ec-desc { font-size:9px; color:rgba(255,255,255,0.35); line-height:1.5; }
+
+    /* Config chips */
+    .cfg-box {
+      background:rgba(0,230,255,0.02); border:1px solid rgba(0,230,255,0.1);
+      border-radius:14px; padding:14px 18px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .cfg-row { display:flex; align-items:center; justify-content:space-between; }
+    .cfg-lbl { font-size:11px; color:rgba(255,255,255,0.35); display:flex; align-items:center; gap:7px; }
+    .rft { font-family:'Share Tech Mono',monospace; font-size:8px;
+      color:rgba(0,230,255,0.4); background:rgba(0,230,255,0.07);
+      border:1px solid rgba(0,230,255,0.18); padding:1px 5px; border-radius:3px; }
+    .chips { display:flex; gap:5px; }
+    .chip { padding:5px 11px; border-radius:16px; font-size:10px; font-weight:600;
+      border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.3);
+      cursor:pointer; background:transparent; transition:all .16s; pointer-events:auto; }
+    .chip:hover { border-color:rgba(0,230,255,0.4); color:rgba(0,230,255,0.7); }
+    .chip.on { background:rgba(0,230,255,0.12); border-color:rgba(0,230,255,0.6); color:var(--cyan); }
+    .cfg-div { height:1px; background:rgba(255,255,255,0.05); }
+
+    /* Start button */
     #btn-start {
-      background: var(--cyan); color: #000; border: none; padding: 20px;
-      border-radius: 15px; font-weight: 800; font-size: 16px; cursor: pointer;
-      text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 10px 30px rgba(0,230,255,0.3);
+      background:var(--cyan); color:#000; border:none;
+      padding:16px 0; border-radius:12px; font-weight:800; font-size:14px;
+      cursor:pointer; text-transform:uppercase; letter-spacing:3px;
+      box-shadow:0 8px 28px rgba(0,230,255,0.3);
+      pointer-events:auto; transition:all .2s; width:100%;
+    }
+    #btn-start:hover { transform:translateY(-1px); box-shadow:0 12px 36px rgba(0,230,255,0.4); }
+
+    /* ══════════════════════════════════════════
+       HUD DE SESIÓN — todo pointer-events:none
+    ══════════════════════════════════════════ */
+    #hud { position:fixed; inset:0; z-index:50; display:none; pointer-events:none; }
+
+    /* RF badge */
+    .rf { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:1.5px;
+      background:rgba(0,230,255,0.1); border:1px solid rgba(0,230,255,0.28);
+      color:rgba(0,230,255,0.65); padding:2px 6px; border-radius:3px;
+      display:inline-block; margin-bottom:3px; }
+
+    /* Timer (arriba centro) */
+    #hud-timer {
+      position:absolute; top:26px; left:50%; transform:translateX(-50%);
+      background:var(--glass); border:1px solid rgba(0,230,255,0.4);
+      border-radius:50px; padding:10px 30px;
+      display:flex; align-items:center; gap:20px;
+      backdrop-filter:blur(12px);
+      box-shadow:0 0 24px rgba(0,230,255,0.1);
+    }
+    .t-label { font-family:'Share Tech Mono',monospace; font-size:8px;
+      letter-spacing:3px; color:rgba(0,230,255,0.5); text-transform:uppercase; }
+    #t-digits { font-family:'Share Tech Mono',monospace; font-size:34px;
+      color:#fff; letter-spacing:5px; text-shadow:0 0 14px rgba(0,230,255,0.4); }
+    #t-digits.urgent { color:#ff7070; text-shadow:0 0 14px rgba(255,80,80,0.5);
+      animation:blink .8s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.65} }
+    .pdots { display:flex; gap:5px; }
+    .pd { width:7px; height:7px; border-radius:50%;
+      border:1px solid rgba(0,230,255,0.35); background:rgba(0,230,255,0.1); transition:all .4s; }
+    .pd.done { background:var(--cyan); box-shadow:0 0 5px var(--cyan); }
+
+    /* Panel izquierdo — Progreso + Métricas */
+    #panel-left {
+      position:absolute; top:50%; left:28px; transform:translateY(-50%);
+      background:var(--glass); border:1px solid rgba(0,230,255,0.2);
+      border-radius:22px; padding:22px 18px; width:220px;
+      backdrop-filter:blur(12px); display:flex; flex-direction:column; gap:20px;
+    }
+    .p-section-title { font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+      color:rgba(0,230,255,0.45); border-bottom:1px solid rgba(0,230,255,0.08);
+      padding-bottom:8px; margin-bottom:4px; }
+    .bar-bg { background:rgba(255,255,255,0.05); border-radius:3px; height:4px; margin-bottom:6px; }
+    .bar-fill { height:100%; border-radius:3px;
+      background:linear-gradient(90deg,#0077ff,#00e6ff);
+      box-shadow:0 0 7px rgba(0,230,255,0.5); transition:width 1.2s ease; width:0%; }
+    .stat-row { display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,0.3); }
+    .stat-row strong { color:var(--cyan); }
+    .metric-row { display:flex; justify-content:space-between; align-items:center; }
+    .metric-lbl { font-size:10px; color:rgba(255,255,255,0.35); }
+    .metric-val { font-family:'Share Tech Mono',monospace; font-size:12px; color:#fff; }
+    .metric-val.green { color:#44ff88; }
+    .metric-val.cyan { color:var(--cyan); }
+
+    /* Panel derecho — Asistente + Control Sensorial */
+    #panel-right {
+      position:absolute; top:50%; right:28px; transform:translateY(-50%);
+      background:var(--glass); border:1px solid rgba(0,230,255,0.2);
+      border-radius:22px; padding:22px 18px; width:220px;
+      backdrop-filter:blur(12px); display:flex; flex-direction:column; gap:18px;
+      pointer-events:auto; /* sliders e interacciones */
     }
 
-    /* ─── INTERFAZ DE SESIÓN (HUD) ─── */
-    #hud-session {
-      position: fixed; inset: 0; z-index: 50; display: none; pointer-events: none;
+    /* Asistente */
+    .asistente-msg {
+      font-size:12px; line-height:1.65; color:rgba(255,255,255,0.65);
+      font-style:italic;
     }
+    .asistente-by { font-size:9px; color:rgba(0,230,255,0.4); letter-spacing:1px; margin-top:6px; }
 
-    .side-panel {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      width: 280px; height: 60vh; background: var(--glass);
-      border: 1px solid rgba(0,230,255,0.2); border-radius: 30px;
-      padding: 30px; backdrop-filter: blur(10px);
+    /* Sensorial toggles */
+    .sp-row { display:flex; flex-direction:column; gap:4px; }
+    .sp-lbl { display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,0.4); }
+    .sp-lbl strong { color:var(--cyan); font-size:10px; }
+    input[type=range].sp-slider { -webkit-appearance:none; width:100%; height:2px;
+      background:rgba(255,255,255,0.08); border-radius:2px; outline:none; cursor:pointer; }
+    input[type=range].sp-slider::-webkit-slider-thumb { -webkit-appearance:none;
+      width:12px; height:12px; border-radius:50%; background:var(--cyan);
+      box-shadow:0 0 6px rgba(0,230,255,0.7); }
+    .tog-row { display:flex; justify-content:space-between; align-items:center;
+      font-size:10px; color:rgba(255,255,255,0.4); }
+    .tog { width:30px; height:16px; border-radius:8px; cursor:pointer; position:relative;
+      border:1px solid rgba(0,230,255,0.35); background:rgba(0,230,255,0.08); transition:all .2s; }
+    .tog.on { background:rgba(0,230,255,0.4); border-color:var(--cyan); }
+    .tog::after { content:''; position:absolute; top:2px; left:2px; width:10px; height:10px;
+      border-radius:50%; background:rgba(0,230,255,0.5); transition:left .2s, background .2s; }
+    .tog.on::after { left:16px; background:var(--cyan); }
+
+    /* Env badge arriba-derecha */
+    #env-badge {
+      position:absolute; top:26px; right:28px;
+      background:var(--glass); border:1px solid rgba(0,230,255,0.18);
+      border-radius:8px; padding:7px 13px;
+      display:flex; align-items:center; gap:8px;
+      backdrop-filter:blur(10px); font-size:10px; color:rgba(255,255,255,0.5);
     }
-    .panel-left { left: 40px; }
-    .panel-right { right: 40px; }
+    .env-dot { width:7px; height:7px; border-radius:50%; }
+    .env-dot.espacio   { background:#8855ff; box-shadow:0 0 6px #8855ff; }
+    .env-dot.bosque    { background:#44cc66; box-shadow:0 0 6px #44cc66; }
+    .env-dot.biblioteca{ background:#ffaa33; box-shadow:0 0 6px #ffaa33; }
 
-    .timer-circle {
-      position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
-      text-align: center; background: var(--glass); padding: 20px 50px;
-      border-radius: 100px; border: 1px solid var(--cyan);
+    /* Zona enfoque */
+    #focus-zone {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      width:58%; height:54%;
+      border:1px solid rgba(0,230,255,0.18); border-radius:10px;
+      box-shadow:0 0 0 2000px rgba(0,2,12,0.5);
     }
-    .timer-text { font-family: 'Share Tech Mono', monospace; font-size: 48px; }
+    #fz-label { position:absolute; bottom:-20px; left:50%; transform:translateX(-50%);
+      font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:2px;
+      color:rgba(0,230,255,0.3); white-space:nowrap; }
 
-    #fade { position: fixed; inset: 0; z-index: 200; background: #000; opacity: 0; pointer-events: none; transition: 0.5s; }
+    /* Status bar abajo-izquierda */
+    #status-bar {
+      position:absolute; bottom:26px; left:28px;
+      display:flex; gap:8px; align-items:center;
+    }
+    .pill { background:var(--glass); border:1px solid rgba(0,230,255,0.14);
+      border-radius:7px; padding:6px 12px; font-size:10px; color:rgba(255,255,255,0.35);
+      display:flex; align-items:center; gap:6px; backdrop-filter:blur(8px); }
+    .sdot { width:6px; height:6px; border-radius:50%; }
+    .sdot.g { background:#00ff88; box-shadow:0 0 5px #00ff88; }
+    .sdot.y { background:#ffcc00; }
+
+    /* Hint abajo-centro */
+    #hint { position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+      font-size:9px; color:rgba(255,255,255,0.15); letter-spacing:1px; white-space:nowrap; }
+
+    /* ══ PANTALLA DE PAUSA ══ */
+    #screen-pause {
+      position:fixed; inset:0; z-index:80; pointer-events:none;
+      background:rgba(3,2,14,0.92); display:none;
+      flex-direction:column; align-items:center; justify-content:center; gap:16px;
+      backdrop-filter:blur(16px);
+    }
+    #screen-pause.on { display:flex; }
+    .p-emoji { font-size:52px; animation:breathe 3s ease-in-out infinite; }
+    @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+    .p-title { font-size:22px; font-weight:800; color:rgba(255,200,70,0.95); letter-spacing:1px; }
+    .p-sub { font-size:10px; color:rgba(255,255,255,0.25); letter-spacing:3px; text-transform:uppercase; }
+    .p-time { font-family:'Share Tech Mono',monospace; font-size:58px; color:#fff; letter-spacing:7px; }
+    #btn-resume { pointer-events:auto; background:rgba(255,200,70,0.1);
+      border:1px solid rgba(255,200,70,0.45); color:rgba(255,200,70,0.9);
+      font-family:'Outfit',sans-serif; font-size:11px; font-weight:700;
+      letter-spacing:4px; text-transform:uppercase; padding:12px 36px;
+      border-radius:9px; cursor:pointer; transition:all .2s; }
+    #btn-resume:hover { background:rgba(255,200,70,0.2); }
+
+    /* Fade overlay */
+    #fade { position:fixed; inset:0; z-index:200; background:#000;
+      opacity:0; pointer-events:none; transition:opacity .5s; }
+    #fade.in { opacity:1; pointer-events:all; }
   </style>
 </head>
 <body>
 
-<div id="fade"></div>
+<!-- ════════════════════════════════════════
+     A-FRAME — Navegación nativa intacta
+     (ningún overlay HTML puede bloquear esto)
+════════════════════════════════════════ -->
+<a-scene
+  id="scene"
+  renderer="antialias:true; colorManagement:true; alpha:true"
+  webxr="requiredFeatures:local-floor; optionalFeatures:dom-overlay,hand-tracking"
+  vr-mode-ui="enabled:true">
 
-<div class="top-bar">
-  <span>PWR: 88%</span>
-  <span>WIFI: UTM_GUEST</span>
-  <span>12:45 PM</span>
-</div>
-
-<div id="screen-inicio">
-  <div class="main-container">
-    <div class="left-panel">
-      <div class="app-title">
-        <p style="font-size:12px; letter-spacing:5px; opacity:0.5">MAESTRÍA MEDIOS INTERACTIVOS</p>
-        <h1>Entorno de<br><em>Estudio</em></h1>
-      </div>
-      <div class="task-card">
-        <p style="font-size:10px; opacity:0.6; margin-bottom:5px">TAREA SELECCIONADA</p>
-        <p style="font-size:18px; font-weight:600">Escritura de Tesis: Capítulo 3</p>
-      </div>
-      <button id="btn-start" onclick="iniciarExperiencia()">Iniciar Sesión</button>
-    </div>
-
-    <div class="right-panel">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px">
-        <div class="stat-box">
-          <div class="stat-value">04</div>
-          <div class="stat-label">Sesiones</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value">120m</div>
-          <div class="stat-label">Enfoque</div>
-        </div>
-      </div>
-      <div class="stat-box" style="flex-grow:1">
-        <p class="stat-label">PROGRESO SEMANAL</p>
-        <div style="height:100px; display:flex; align-items:flex-end; gap:10px; margin-top:20px">
-          <div style="flex:1; height:40%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
-          <div style="flex:1; height:70%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
-          <div style="flex:1; height:90%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
-          <div style="flex:1; height:60%; background:var(--cyan); border-radius:5px 5px 0 0"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="hud-session">
-  <div class="timer-circle">
-    <div class="timer-text" id="timer">25:00</div>
-    <p style="font-size:10px; letter-spacing:3px; color:var(--cyan)">FOCUS MODE</p>
-  </div>
-
-  <div class="side-panel panel-left">
-    <h3 style="color:var(--cyan); margin-bottom:20px; font-size:14px">MÉTRICAS</h3>
-    <div style="margin-bottom:20px">
-      <p style="font-size:10px; opacity:0.5">ESTADO ACTUAL</p>
-      <p>Concentración Alta</p>
-    </div>
-    <div>
-      <p style="font-size:10px; opacity:0.5">RITMO CARDIACO</p>
-      <p style="font-family:'Share Tech Mono'">72 BPM</p>
-    </div>
-  </div>
-
-  <div class="side-panel panel-right">
-    <h3 style="color:var(--cyan); margin-bottom:20px; font-size:14px">ASISTENTE</h3>
-    <p style="font-size:13px; line-height:1.6; opacity:0.8">"Luis, vas por buen camino. Has mantenido el enfoque por 15 minutos seguidos."</p>
-  </div>
-</div>
-
-<a-scene renderer="antialias: true" vr-mode-ui="enabled: true">
   <a-assets>
-    <img id="bosque" src="fondo-bosque.jpg">
-    <img id="robot-img" src="Gemini_Generated_Image_5fj6ln5fj6ln5fj6.png">
+    <!-- Panorámicas de ambiente -->
+    <img id="sky-bosque"   src="fondo-bosque.jpg"   crossorigin="anonymous">
+    <!-- El astronauta — asegúrate que el archivo esté en la misma carpeta -->
+    <img id="robot-img"    src="astronauta.png"      crossorigin="anonymous">
   </a-assets>
 
-  <a-sky src="#bosque" rotation="0 -90 0"></a-sky>
+  <!-- ══ ILUMINACIÓN (se actualiza por ambiente) ══ -->
+  <a-light id="l-amb" type="ambient"     color="#1a2a1a" intensity="0.7"></a-light>
+  <a-light id="l-dir" type="directional" color="#a0c8ff" intensity="0.5" position="2 4 1"></a-light>
+  <a-light id="l-lmp" type="point"       color="#ffcc88" intensity="1.0" distance="4" position="1.2 1.6 -1.5"></a-light>
 
+  <!-- ══ SKY — cambia por ambiente ══ -->
+  <!-- Bosque: panorámica real -->
+  <a-sky id="sky-el" src="#sky-bosque" rotation="0 -90 0"></a-sky>
+
+  <!-- ══ ENTORNO ESPACIO (oculto por defecto) ══ -->
+  <a-entity id="env-espacio" visible="false">
+    <!-- Estrellas -->
+    <a-sphere position="-8 4 -15"  radius="0.04" color="#fff"></a-sphere>
+    <a-sphere position="5 7 -18"   radius="0.05" color="#fff"></a-sphere>
+    <a-sphere position="-12 2 -20" radius="0.03" color="#d0e0ff"></a-sphere>
+    <a-sphere position="10 5 -16"  radius="0.05" color="#fff"></a-sphere>
+    <a-sphere position="-3 8 -19"  radius="0.04" color="#fff"></a-sphere>
+    <a-sphere position="7 1 -17"   radius="0.05" color="#ffe8d0"></a-sphere>
+    <a-sphere position="-6 6 -18"  radius="0.03" color="#d0d8ff"></a-sphere>
+    <a-sphere position="3 9 -20"   radius="0.04" color="#fff"></a-sphere>
+    <a-sphere position="12 3 -18"  radius="0.03" color="#fff"></a-sphere>
+    <a-sphere position="-10 7 -22" radius="0.04" color="#e0d0ff"></a-sphere>
+    <a-sphere position="8 8 -22"   radius="0.05" color="#fff"></a-sphere>
+    <a-sphere position="15 6 -25"  radius="0.05" color="#fff"></a-sphere>
+    <!-- Nebulosa -->
+    <a-sphere position="-4 4 -16" radius="4" color="#5020a0" opacity="0.04"></a-sphere>
+    <a-sphere position="3 3 -18"  radius="3" color="#204090" opacity="0.05"></a-sphere>
+    <!-- Luna -->
+    <a-sphere position="-7 5 -14" radius="0.9" color="#d8d0c0" roughness="0.8">
+      <a-light type="point" color="#fffce0" intensity="0.3" distance="4"></a-light>
+    </a-sphere>
+  </a-entity>
+
+  <!-- ══ ENTORNO BIBLIOTECA (oculto por defecto) ══ -->
+  <a-entity id="env-biblioteca" visible="false">
+    <a-entity position="-4.5 0 -4">
+      <a-box width="2.2" height="4" depth="0.3" position="0 2 0" color="#3a2408"></a-box>
+      <a-box width="2" height="0.04" depth="0.25" position="0 0.8 0.1" color="#4a3010"></a-box>
+      <a-box width="2" height="0.04" depth="0.25" position="0 1.6 0.1" color="#4a3010"></a-box>
+      <a-box width="2" height="0.04" depth="0.25" position="0 2.4 0.1" color="#4a3010"></a-box>
+      <a-box width="0.08" height="0.20" depth="0.22" position="-0.7 1.0 0.12" color="#8b2222"></a-box>
+      <a-box width="0.07" height="0.18" depth="0.22" position="-0.6 1.0 0.12" color="#224488"></a-box>
+      <a-box width="0.09" height="0.22" depth="0.22" position="-0.5 1.0 0.12" color="#226644"></a-box>
+      <a-box width="0.07" height="0.20" depth="0.22" position="0.1 1.0 0.12" color="#664488"></a-box>
+      <a-box width="0.09" height="0.20" depth="0.22" position="0.5 1.0 0.12" color="#2244aa"></a-box>
+      <a-box width="0.08" height="0.20" depth="0.22" position="-0.7 1.8 0.12" color="#aa3322"></a-box>
+      <a-box width="0.09" height="0.22" depth="0.22" position="0.1 1.8 0.12" color="#228866"></a-box>
+      <a-box width="0.08" height="0.20" depth="0.22" position="0.5 1.8 0.12" color="#aa2244"></a-box>
+    </a-entity>
+    <a-entity position="4.5 0 -4">
+      <a-box width="2.2" height="4" depth="0.3" position="0 2 0" color="#3a2408"></a-box>
+      <a-box width="2" height="0.04" depth="0.25" position="0 0.8 0.1" color="#4a3010"></a-box>
+      <a-box width="2" height="0.04" depth="0.25" position="0 1.6 0.1" color="#4a3010"></a-box>
+      <a-box width="0.08" height="0.20" depth="0.22" position="-0.65 1.0 0.12" color="#cc4422"></a-box>
+      <a-box width="0.07" height="0.18" depth="0.22" position="-0.55 1.0 0.12" color="#2255bb"></a-box>
+      <a-box width="0.09" height="0.22" depth="0.22" position="0.1 1.0 0.12" color="#553388"></a-box>
+      <a-box width="0.08" height="0.20" depth="0.22" position="0.5 1.0 0.12" color="#228855"></a-box>
+    </a-entity>
+    <!-- Lámparas de pie -->
+    <a-entity position="-2.5 0 -3.5">
+      <a-cylinder radius="0.05" height="1.6" color="#6a4a20"></a-cylinder>
+      <a-cone position="0 0.95 0" radius-bottom="0.25" radius-top="0.05" height="0.3" color="#888" rotation="0 0 0"></a-cone>
+      <a-light type="point" position="0 0.85 0" color="#ffcc70" intensity="1.5" distance="5"></a-light>
+    </a-entity>
+    <a-entity position="2.5 0 -3.5">
+      <a-cylinder radius="0.05" height="1.6" color="#6a4a20"></a-cylinder>
+      <a-cone position="0 0.95 0" radius-bottom="0.25" radius-top="0.05" height="0.3" color="#888"></a-cone>
+      <a-light type="point" position="0 0.85 0" color="#ffcc70" intensity="1.5" distance="5"></a-light>
+    </a-entity>
+  </a-entity>
+
+  <!-- ══ ESCRITORIO (compartido — tu código mejorado) ══ -->
   <a-entity position="0 0 -1.5">
+
+    <!-- Superficie del escritorio -->
     <a-box position="0 0.7 0" width="2.2" height="0.06" depth="0.9" color="#4b3621"></a-box>
-    
+
+    <!-- Laptop -->
     <a-entity position="0 0.73 0">
       <a-box width="0.5" height="0.02" depth="0.35" color="#1a1a1a"></a-box>
       <a-box position="0 0.18 -0.17" rotation="-25 0 0" width="0.5" height="0.35" depth="0.02" color="#222">
-        <a-plane position="0 0 0.011" width="0.47" height="0.32" color="#000"></a-plane>
+        <a-plane position="0 0 0.011" width="0.47" height="0.32" color="#0a1a3a"></a-plane>
       </a-box>
     </a-entity>
 
-    <a-image src="#robot-img" position="-0.8 1.1 0" width="0.4" height="0.4"
-             animation="property: position; to: -0.8 1.15 0; dur: 1500; dir: alternate; loop: true"></a-image>
-  </a-entity>
+    <!-- Teclado -->
+    <a-box position="0 0.72 0.2" width="0.45" height="0.01" depth="0.18" color="#1c1c22"></a-box>
 
-  <a-camera position="0 1.6 0"></a-camera>
+    <!-- Libros apilados -->
+    <a-entity position="-0.8 0.73 0">
+      <a-box position="0 0.03 0" width="0.18" height="0.06" depth="0.25" color="#8b2222"></a-box>
+      <a-box position="0 0.09 0" width="0.17" height="0.06" depth="0.23" color="#1a5a2a"></a-box>
+      <a-box position="0 0.15 0" width="0.18" height="0.06" depth="0.25" color="#4a3a8a"></a-box>
+    </a-entity>
+
+    <!-- Taza -->
+    <a-entity position="0.75 0.73 0.1">
+      <a-cylinder radius="0.04" height="0.08" color="#ddd"></a-cylinder>
+      <a-circle position="0 0.041 0" rotation="-90 0 0" radius="0.035" color="#3a1808"></a-circle>
+    </a-entity>
+
+    <!-- ── ASTRONAUTA en esquina izquierda ── -->
+    <a-entity position="-0.75 0.73 0.1" rotation="0 30 0">
+      <!-- Pedestal con anillo giratorio -->
+      <a-cylinder position="0 0.014 0" radius="0.05" height="0.018" color="#0a1a3a" metalness="0.7"></a-cylinder>
+      <a-torus position="0 0.013 0" radius="0.052" radius-tubular="0.003"
+        color="#00aaff" opacity="0.6" rotation="-90 0 0"
+        animation="property:rotation; from:-90 0 0; to:-90 360 0; dur:5000; loop:true; easing:linear">
+      </a-torus>
+      <!-- Display con imagen -->
+      <a-box position="0 0.11 0" width="0.10" height="0.11" depth="0.007" color="#040c1e" metalness="0.5"></a-box>
+      <a-image src="#robot-img" width="0.085" height="0.085" position="0 0.112 0.006"></a-image>
+      <!-- Glow parpadeante -->
+      <a-plane position="0 0.112 0.008" width="0.085" height="0.085" color="#0088ff" opacity="0.08"
+        animation="property:opacity; from:0.02; to:0.15; dur:2200; loop:true; dir:alternate; easing:easeInOutSine">
+      </a-plane>
+      <!-- Punto flotante -->
+      <a-sphere position="0 0.20 0" radius="0.005" color="#00eeff" opacity="0.8"
+        animation="property:position; from:0 0.20 0; to:0 0.24 0; dur:1900; loop:true; dir:alternate; easing:easeInOutSine">
+      </a-sphere>
+    </a-entity>
+
+  </a-entity><!-- fin escritorio -->
+
+  <!-- ══ CÁMARA ══ -->
+  <a-camera position="0 1.6 0"
+    look-controls="magicWindowTrackingEnabled:false; reverseMouseDrag:false"
+    wasd-controls="acceleration:15">
+  </a-camera>
+
 </a-scene>
 
+<!-- ════ OVERLAYS — pointer-events:none salvo excepciones ════ -->
+<div id="visor"></div>
+
+<div id="top-bar">
+  <span>PWR: 88%</span>
+  <span id="tb-env">ENV: BOSQUE</span>
+  <span id="tb-time">--:--</span>
+</div>
+
+<!-- HUD sesión -->
+<div id="hud">
+
+  <!-- Timer centro-arriba -->
+  <div id="hud-timer">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span class="rf">RF2 · RF5</span>
+      <div class="t-label" id="t-phase">ENFOQUE</div>
+    </div>
+    <div id="t-digits">25:00</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div class="pdots">
+        <div class="pd" id="d0"></div><div class="pd" id="d1"></div>
+        <div class="pd" id="d2"></div><div class="pd" id="d3"></div>
+      </div>
+      <div class="t-label">POMODOROS</div>
+    </div>
+  </div>
+
+  <!-- Panel izquierdo — Progreso + Métricas -->
+  <div id="panel-left">
+    <div>
+      <span class="rf">RNF1</span>
+      <div class="p-section-title">Progreso de Sesión</div>
+      <div class="bar-bg"><div class="bar-fill" id="prog-bar"></div></div>
+      <div class="stat-row">Completado <strong><span id="pct">0</span>%</strong></div>
+      <div class="stat-row" style="margin-top:3px">Pomodoros <strong><span id="cnt">0</span>/4</strong></div>
+    </div>
+    <div>
+      <div class="p-section-title">Métricas · <span style="font-size:8px;color:rgba(0,230,255,0.4)">RNF1</span></div>
+      <div class="metric-row" style="margin-bottom:8px">
+        <div class="metric-lbl">Estado</div>
+        <div class="metric-val green">Concentración Alta</div>
+      </div>
+      <div class="metric-row" style="margin-bottom:8px">
+        <div class="metric-lbl">Ritmo Cardíaco</div>
+        <div class="metric-val cyan" id="bpm">72 BPM</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-lbl">Tiempo activo</div>
+        <div class="metric-val" id="elapsed">00:00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zona de enfoque RF3 -->
+  <div id="focus-zone">
+    <div id="fz-label">ZONA DE ENFOQUE · RF3</div>
+  </div>
+
+  <!-- Panel derecho — Asistente + Controles -->
+  <div id="panel-right">
+
+    <!-- Asistente IA -->
+    <div>
+      <span class="rf">RF2</span>
+      <div class="p-section-title">Asistente</div>
+      <div class="asistente-msg" id="asistente-msg">
+        "Bienvenido. Tu sesión de estudio ha comenzado. Mantén el enfoque."
+      </div>
+      <div class="asistente-by">— Entorno de Estudio P3</div>
+    </div>
+
+    <!-- Control sensorial RF6 -->
+    <div>
+      <span class="rf">RF6 · RNF3</span>
+      <div class="p-section-title">Control Sensorial</div>
+      <div class="sp-row">
+        <div class="sp-lbl">Iluminación <strong id="vl">60%</strong></div>
+        <input type="range" class="sp-slider" value="60" oninput="document.getElementById('vl').textContent=this.value+'%'">
+      </div>
+      <div class="sp-row" style="margin-top:8px">
+        <div class="sp-lbl">Volumen <strong id="vv">40%</strong></div>
+        <input type="range" class="sp-slider" value="40" oninput="document.getElementById('vv').textContent=this.value+'%'">
+      </div>
+      <div class="sp-row" style="margin-top:8px">
+        <div class="sp-lbl">Overlay <strong id="vo">70%</strong></div>
+        <input type="range" class="sp-slider" value="70">
+      </div>
+    </div>
+
+    <!-- Toggles RF1 RF4 -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="tog-row">
+        Bloqueo digital <span class="rf" style="font-size:7px">RF1</span>
+        <div class="tog on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="tog-row">
+        Zona enfoque <span class="rf" style="font-size:7px">RF3</span>
+        <div class="tog on" onclick="this.classList.toggle('on');document.getElementById('focus-zone').style.display=this.classList.contains('on')?'block':'none'"></div>
+      </div>
+      <div class="tog-row">
+        Pausas activas <span class="rf" style="font-size:7px">RF4</span>
+        <div class="tog on" id="tog-pausas" onclick="this.classList.toggle('on');S.pausas=this.classList.contains('on')"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Env badge arriba-derecha -->
+  <div id="env-badge">
+    <div class="env-dot bosque" id="edot"></div>
+    <span id="env-label">🌲 Bosque</span>
+  </div>
+
+  <!-- Status bar abajo-izquierda -->
+  <div id="status-bar">
+    <div class="pill"><div class="sdot g"></div>Concentración activa</div>
+    <div class="pill"><div class="sdot y"></div><span id="el-time">00:00</span></div>
+    <div class="pill"><span class="rf" style="margin:0">RNF2</span>Meta Quest 3</div>
+  </div>
+
+  <div id="hint">Arrastrar ratón para mirar · WASD para mover</div>
+
+</div><!-- fin #hud -->
+
+<!-- PAUSA -->
+<div id="screen-pause">
+  <div class="p-emoji">☕</div>
+  <span class="rf">RF4 · Reducción de fatiga</span>
+  <div class="p-title">Pausa Activa</div>
+  <div class="p-sub">Retira el visor · Estira</div>
+  <div class="p-time" id="p-time">05:00</div>
+  <button id="btn-resume" onclick="resume()">↩ Continuar sesión</button>
+</div>
+
+<!-- INICIO -->
+<div id="screen-inicio">
+  <div class="s-eyebrow">UTM · Maestría Medios Interactivos · Propuesta P3</div>
+  <div class="s-title">Entorno de <em>Estudio</em></div>
+
+  <div class="inicio-grid">
+    <!-- Izquierda: task + config + start -->
+    <div class="i-left">
+      <div class="task-card">
+        <div class="task-label">Tarea seleccionada</div>
+        <div class="task-name">Escritura de Tesis: Capítulo 3</div>
+      </div>
+
+      <!-- Config chips -->
+      <div class="cfg-box">
+        <div class="cfg-row">
+          <div class="cfg-lbl">Método <span class="rft">RF5</span></div>
+          <div class="chips" id="c-met">
+            <button class="chip on" onclick="chip(this,'c-met')">Pomodoro</button>
+            <button class="chip"    onclick="chip(this,'c-met')">Libre</button>
+            <button class="chip"    onclick="chip(this,'c-met')">90 min</button>
+          </div>
+        </div>
+        <div class="cfg-div"></div>
+        <div class="cfg-row">
+          <div class="cfg-lbl">Sonido <span class="rft">RF6</span></div>
+          <div class="chips" id="c-snd">
+            <button class="chip on" onclick="chip(this,'c-snd')">Silencio</button>
+            <button class="chip"    onclick="chip(this,'c-snd')">Lo-fi</button>
+            <button class="chip"    onclick="chip(this,'c-snd')">Naturaleza</button>
+          </div>
+        </div>
+        <div class="cfg-div"></div>
+        <div class="cfg-row">
+          <div class="cfg-lbl">Bloqueo <span class="rft">RF1</span></div>
+          <div class="chips" id="c-blk">
+            <button class="chip on" onclick="chip(this,'c-blk')">Activado</button>
+            <button class="chip"    onclick="chip(this,'c-blk')">Desactivado</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-start" onclick="startSession()">▶ &nbsp; Iniciar Sesión</button>
+    </div>
+
+    <!-- Derecha: stats + ambiente -->
+    <div class="i-right">
+      <div class="stats-row">
+        <div class="stat-b">
+          <div class="stat-v">04</div>
+          <div class="stat-l">Sesiones hoy</div>
+        </div>
+        <div class="stat-b">
+          <div class="stat-v">120m</div>
+          <div class="stat-l">Enfoque total</div>
+        </div>
+      </div>
+      <div class="glass-box">
+        <div style="font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:8px">Progreso semanal</div>
+        <div class="mini-chart">
+          <div class="bar-c" style="height:40%"></div>
+          <div class="bar-c" style="height:70%"></div>
+          <div class="bar-c" style="height:90%"></div>
+          <div class="bar-c" style="height:60%"></div>
+          <div class="bar-c" style="height:80%"></div>
+        </div>
+      </div>
+
+      <!-- Selección de ambiente -->
+      <div class="env-section-label">ambiente de estudio</div>
+      <div class="env-grid">
+        <div class="env-card" data-env="espacio" onclick="pickEnv(this)">
+          <div class="ec-check">✓</div>
+          <div class="ec-prev espacio">
+            <div class="star-dot" style="width:2px;height:2px;top:20%;left:25%;opacity:.9"></div>
+            <div class="star-dot" style="width:3px;height:3px;top:40%;left:65%;opacity:.7"></div>
+            <div class="star-dot" style="width:2px;height:2px;top:60%;left:45%;opacity:.8"></div>
+            <div class="star-dot" style="width:2px;height:2px;top:15%;left:80%;opacity:.65"></div>
+            <div class="star-dot" style="width:2px;height:2px;top:70%;left:20%;opacity:.75"></div>
+          </div>
+          <div class="ec-info"><div class="ec-name">🌌 Espacio</div><div class="ec-desc">Cosmos oscuro, máxima concentración.</div></div>
+        </div>
+        <div class="env-card sel" data-env="bosque" onclick="pickEnv(this)">
+          <div class="ec-check">✓</div>
+          <div class="ec-prev bosque">
+            <svg width="100%" height="72" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="30%"  cy="60%" rx="15%" ry="28%" fill="#2e4818"/>
+              <ellipse cx="55%"  cy="55%" rx="18%" ry="32%" fill="#3a5828"/>
+              <ellipse cx="80%"  cy="62%" rx="14%" ry="25%" fill="#2e4818"/>
+            </svg>
+          </div>
+          <div class="ec-info"><div class="ec-name">🌲 Bosque</div><div class="ec-desc">Panorámica 360° real. Naturaleza.</div></div>
+        </div>
+        <div class="env-card" data-env="biblioteca" onclick="pickEnv(this)">
+          <div class="ec-check">✓</div>
+          <div class="ec-prev biblioteca">
+            <div class="book-strip">
+              <div class="bk" style="width:7px;height:26px;background:#8b2222"></div>
+              <div class="bk" style="width:6px;height:20px;background:#224488"></div>
+              <div class="bk" style="width:8px;height:28px;background:#226644"></div>
+              <div class="bk" style="width:6px;height:22px;background:#885522"></div>
+              <div class="bk" style="width:7px;height:25px;background:#664488"></div>
+              <div class="bk" style="width:6px;height:20px;background:#aa3322"></div>
+              <div class="bk" style="width:8px;height:27px;background:#2244aa"></div>
+              <div class="bk" style="width:6px;height:23px;background:#228844"></div>
+            </div>
+          </div>
+          <div class="ec-info"><div class="ec-name">📚 Biblioteca</div><div class="ec-desc">Cálido, estanterías y lámparas Edison.</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- fin inicio-grid -->
+</div>
+
+<div id="fade"></div>
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
 <script>
-  function iniciarExperiencia() {
-    document.getElementById('fade').style.opacity = '1';
-    
-    setTimeout(() => {
-      document.getElementById('screen-inicio').style.opacity = '0';
-      setTimeout(() => document.getElementById('screen-inicio').style.display = 'none', 800);
-      
-      document.getElementById('hud-session').style.display = 'block';
-      document.getElementById('fade').style.opacity = '0';
-      
-      startTimer(25 * 60);
-    }, 600);
+// ── State ──
+const S = {
+  env:'bosque', phase:'focus',
+  secs:25*60, pomos:0, elapsed:0,
+  running:false, pausas:true, pauseSecs:5*60,
+  tick:null, elTick:null, pTick:null
+};
+
+// Configs de ambiente
+const ENV = {
+  espacio:    { skyColor:'#000510', ambColor:'#080818', ambInt:0.4, dirColor:'#6080ff', dirInt:0.3, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO' },
+  bosque:     { skyColor:null,      ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE'  },
+  biblioteca: { skyColor:'#1a0a02', ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.3, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA' }
+};
+
+// Reloj top bar
+setInterval(()=>{
+  const d=new Date();
+  document.getElementById('tb-time').textContent =
+    d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+}, 1000);
+
+// ── Selección de ambiente ──
+function pickEnv(el) {
+  document.querySelectorAll('.env-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  S.env = el.dataset.env;
+}
+
+function chip(el,grp) {
+  document.getElementById(grp).querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── Aplicar ambiente a la escena ──
+function applyEnv(env) {
+  const c = ENV[env];
+  const scene = document.getElementById('scene');
+  const sky   = document.getElementById('sky-el');
+
+  // Sky
+  if(env==='bosque') {
+    sky.setAttribute('src','#sky-bosque');
+    sky.setAttribute('color','');
+  } else {
+    sky.removeAttribute('src');
+    sky.setAttribute('color', c.skyColor);
   }
 
-  function startTimer(duration) {
-    let timer = duration, minutes, seconds;
-    const display = document.getElementById('timer');
-    setInterval(() => {
-      minutes = parseInt(timer / 60, 10);
-      seconds = parseInt(timer % 60, 10);
-      display.textContent = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
-      if (--timer < 0) timer = 0;
-    }, 1000);
-  }
+  // Iluminación
+  document.getElementById('l-amb').setAttribute('color', c.ambColor);
+  document.getElementById('l-amb').setAttribute('intensity', c.ambInt);
+  document.getElementById('l-dir').setAttribute('color', c.dirColor);
+  document.getElementById('l-dir').setAttribute('intensity', c.dirInt);
+
+  // Entidades de ambiente
+  ['espacio','biblioteca'].forEach(k=>
+    document.getElementById('env-'+k).setAttribute('visible', k===env));
+
+  // HUD badge
+  const dot = document.getElementById('edot');
+  dot.className = 'env-dot ' + c.dot;
+  document.getElementById('env-label').textContent = c.lbl;
+  document.getElementById('tb-env').textContent = 'ENV: ' + c.topLbl;
+}
+
+// ── Iniciar sesión ──
+function startSession() {
+  const fd = document.getElementById('fade');
+  fd.style.opacity = '1'; fd.style.pointerEvents = 'all';
+  setTimeout(()=>{
+    applyEnv(S.env);
+    document.getElementById('screen-inicio').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    fd.style.opacity = '0'; fd.style.pointerEvents = 'none';
+    S.running = true;
+    startTick(); startElapsed();
+    updateAsistente(0);
+  }, 500);
+}
+
+// ── Timer ──
+function startTick() {
+  clearInterval(S.tick);
+  S.tick = setInterval(()=>{ if(!S.running) return; S.secs--; renderTimer(); if(S.secs<=0) endPhase(); }, 1000);
+}
+
+function endPhase() {
+  clearInterval(S.tick);
+  if(S.phase==='focus') {
+    S.pomos = Math.min(S.pomos+1, 4);
+    markDot(S.pomos-1); updateProg();
+    updateAsistente(S.pomos);
+    if(S.pausas) enterPause(); else nextFocus();
+  } else resume();
+}
+
+function enterPause() {
+  S.phase='break'; S.pauseSecs=5*60;
+  document.getElementById('screen-pause').classList.add('on');
+  renderPause();
+  S.pTick = setInterval(()=>{
+    S.pauseSecs--;
+    renderPause();
+    if(S.pauseSecs<=0){ clearInterval(S.pTick); document.getElementById('screen-pause').classList.remove('on'); resume(); }
+  }, 1000);
+}
+
+function resume() {
+  clearInterval(S.pTick);
+  document.getElementById('screen-pause').classList.remove('on');
+  nextFocus();
+}
+
+function nextFocus() {
+  S.phase='focus'; S.secs=25*60; S.running=true; renderTimer(); startTick();
+}
+
+// ── Render ──
+function renderTimer() {
+  const m=Math.floor(S.secs/60).toString().padStart(2,'0');
+  const s=(S.secs%60).toString().padStart(2,'0');
+  const el=document.getElementById('t-digits');
+  el.textContent=m+':'+s;
+  el.classList.toggle('urgent', S.secs<120 && S.phase==='focus');
+  document.getElementById('t-phase').textContent = S.phase==='focus' ? 'ENFOQUE' : 'PAUSA';
+}
+
+function renderPause() {
+  const m=Math.floor(S.pauseSecs/60).toString().padStart(2,'0');
+  const s=(S.pauseSecs%60).toString().padStart(2,'0');
+  document.getElementById('p-time').textContent=m+':'+s;
+}
+
+function markDot(i){ document.getElementById('d'+i)?.classList.add('done'); }
+
+function updateProg() {
+  const p=Math.round(S.pomos/4*100);
+  document.getElementById('prog-bar').style.width=p+'%';
+  document.getElementById('pct').textContent=p;
+  document.getElementById('cnt').textContent=S.pomos;
+}
+
+function startElapsed() {
+  S.elTick = setInterval(()=>{
+    S.elapsed++;
+    const m=Math.floor(S.elapsed/60).toString().padStart(2,'0');
+    const s=(S.elapsed%60).toString().padStart(2,'0');
+    const t=m+':'+s;
+    document.getElementById('elapsed').textContent=t;
+    document.getElementById('el-time').textContent=t;
+    // Simular BPM ligeramente aleatorio
+    document.getElementById('bpm').textContent=(68+Math.floor(Math.random()*10))+' BPM';
+  }, 1000);
+}
+
+// ── Mensajes del asistente ──
+const MSG = [
+  '"Bienvenido. Tu sesión ha comenzado. Mantén el enfoque."',
+  '"¡Primer pomodoro completado! Llevas un buen ritmo."',
+  '"Vas muy bien, Luis. Dos bloques de trabajo completados."',
+  '"Tres pomodoros, excelente constancia. ¡Casi terminas!"',
+  '"¡Sesión completada! Lograste 4 bloques de concentración profunda."'
+];
+function updateAsistente(n) {
+  document.getElementById('asistente-msg').textContent = MSG[Math.min(n, MSG.length-1)];
+}
+
+// ── AR Passthrough (Quest 3) ──
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('scene').addEventListener('enter-vr',()=>{
+    const xr=document.getElementById('scene').xrSession;
+    if(xr?.environmentBlendMode==='alpha-blend') {
+      document.getElementById('scene').setAttribute('background','transparent:true');
+      document.getElementById('visor').style.display='none';
+    }
+  });
+});
 </script>
 </body>
 </html>
