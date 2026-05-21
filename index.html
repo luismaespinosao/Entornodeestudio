@@ -338,7 +338,10 @@
 
   <a-assets>
     <!-- Panorámicas de ambiente -->
-    <img id="sky-bosque"   src="fondo-bosque.jpg"   crossorigin="anonymous">
+    <img id="sky-bosque"     src="fondo-bosque.jpg"      crossorigin="anonymous">
+    <!-- Agrega tus panorámicas aquí cuando las tengas: -->
+    <!-- <img id="sky-espacio"    src="fondo-espacio.jpg"     crossorigin="anonymous"> -->
+    <!-- <img id="sky-biblioteca" src="fondo-biblioteca.jpg"  crossorigin="anonymous"> -->
     <!-- Modelo 3D del asistente virtual -->
     <a-asset-item id="kodkod" src="KodKod-v2.glb"></a-asset-item>
   </a-assets>
@@ -576,7 +579,7 @@
       </div>
       <div class="sp-row" style="margin-top:8px">
         <div class="sp-lbl">Volumen <strong id="vv">40%</strong></div>
-        <input type="range" class="sp-slider" value="40" oninput="document.getElementById('vv').textContent=this.value+'%'">
+        <input type="range" class="sp-slider" value="40" oninput="document.getElementById('vv').textContent=this.value+'%'; AudioSys.setVolume(this.value)">
       </div>
       <div class="sp-row" style="margin-top:8px">
         <div class="sp-lbl">Overlay <strong id="vo">70%</strong></div>
@@ -759,10 +762,14 @@ const S = {
 };
 
 // Configs de ambiente
+// skyImg: ID del asset <img> a usar como panorámica (null = color sólido)
 const ENV = {
-  espacio:    { skyColor:'#000510', ambColor:'#080818', ambInt:0.4, dirColor:'#6080ff', dirInt:0.3, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO' },
-  bosque:     { skyColor:null,      ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE'  },
-  biblioteca: { skyColor:'#1a0a02', ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.3, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA' }
+  espacio:    { skyImg: null,           skyColor:'#000510', ambColor:'#080818', ambInt:0.4, dirColor:'#6080ff', dirInt:0.3, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO'    },
+  bosque:     { skyImg: '#sky-bosque',  skyColor:null,      ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE'     },
+  biblioteca: { skyImg: null,           skyColor:'#1a0a02', ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.3, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA' }
+  // Cuando tengas las panorámicas descomentar skyImg:
+  // espacio:    { skyImg: '#sky-espacio',    ... }
+  // biblioteca: { skyImg: '#sky-biblioteca', ... }
 };
 
 // Reloj top bar
@@ -772,31 +779,141 @@ setInterval(()=>{
     d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
 }, 1000);
 
-// ── Selección de ambiente ──
+// ── Sistema de Audio (Web Audio API) ──
+const AudioSys = {
+  ctx: null, gainNode: null, nodes: [], current: 'silencio',
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.gainNode = this.ctx.createGain();
+    this.gainNode.connect(this.ctx.destination);
+    this.gainNode.gain.value = 0.3;
+  },
+
+  stop() {
+    this.nodes.forEach(n => { try { n.stop(); } catch(e){} });
+    this.nodes = [];
+  },
+
+  makeNoise(type) {
+    const len = this.ctx.sampleRate * 4;
+    const buf = this.ctx.createBuffer(2, len, this.ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,last=0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random()*2-1;
+        if (type==='white') { d[i]=w*0.5; continue; }
+        if (type==='brown') { last=(last+0.02*w)/1.02; d[i]=last*3.5; continue; }
+        // Pink noise
+        b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+        d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+        b6=w*0.115926;
+      }
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    return src;
+  },
+
+  playLofi() {
+    this.stop();
+    // Capa 1: Brown noise filtrado — calidez vinilo
+    const brown = this.makeNoise('brown');
+    const lp1   = this.ctx.createBiquadFilter();
+    lp1.type='lowpass'; lp1.frequency.value=900; lp1.Q.value=0.8;
+    const g1 = this.ctx.createGain(); g1.gain.value=0.55;
+    brown.connect(lp1); lp1.connect(g1); g1.connect(this.gainNode);
+    brown.start(); this.nodes.push(brown);
+    // Capa 2: Pink noise suave — textura
+    const pink = this.makeNoise('pink');
+    const lp2  = this.ctx.createBiquadFilter();
+    lp2.type='lowpass'; lp2.frequency.value=1800;
+    const g2 = this.ctx.createGain(); g2.gain.value=0.12;
+    pink.connect(lp2); lp2.connect(g2); g2.connect(this.gainNode);
+    pink.start(); this.nodes.push(pink);
+  },
+
+  playNaturaleza() {
+    this.stop();
+    // Capa 1: lluvia — white noise band-pass
+    const rain = this.makeNoise('white');
+    const bp   = this.ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.frequency.value=700; bp.Q.value=0.45;
+    const lp   = this.ctx.createBiquadFilter();
+    lp.type='lowpass'; lp.frequency.value=5000;
+    const hp   = this.ctx.createBiquadFilter();
+    hp.type='highpass'; hp.frequency.value=90;
+    const g1   = this.ctx.createGain(); g1.gain.value=0.75;
+    rain.connect(bp); bp.connect(lp); lp.connect(hp); hp.connect(g1); g1.connect(this.gainNode);
+    rain.start(); this.nodes.push(rain);
+    // Capa 2: viento — pink noise muy grave
+    const wind = this.makeNoise('pink');
+    const lp2  = this.ctx.createBiquadFilter();
+    lp2.type='lowpass'; lp2.frequency.value=250; lp2.Q.value=2;
+    const g2   = this.ctx.createGain(); g2.gain.value=0.22;
+    wind.connect(lp2); lp2.connect(g2); g2.connect(this.gainNode);
+    wind.start(); this.nodes.push(wind);
+  },
+
+  play(type) {
+    this.current = type;
+    if (type==='silencio') { if(this.ctx) this.stop(); return; }
+    this.init();
+    if (this.ctx.state==='suspended') this.ctx.resume();
+    if (type==='lofi') this.playLofi();
+    else if (type==='naturaleza') this.playNaturaleza();
+  },
+
+  setVolume(v) {
+    if (this.gainNode) this.gainNode.gain.value = (v/100)*0.5;
+  }
+};
+
 function pickEnv(el) {
   document.querySelectorAll('.env-card').forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');
   S.env = el.dataset.env;
 }
 
-function chip(el,grp) {
+function chip(el, grp) {
   document.getElementById(grp).querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
+  // Acción de sonido
+  if (grp==='c-snd') {
+    const t = el.textContent.trim();
+    if      (t==='Lo-fi')      AudioSys.play('lofi');
+    else if (t==='Naturaleza') AudioSys.play('naturaleza');
+    else                       AudioSys.play('silencio');
+  }
 }
 
 // ── Aplicar ambiente a la escena ──
 function applyEnv(env) {
   const c = ENV[env];
-  const scene = document.getElementById('scene');
-  const sky   = document.getElementById('sky-el');
+  const sky = document.getElementById('sky-el');
 
-  // Sky
-  if(env==='bosque') {
-    sky.setAttribute('src','#sky-bosque');
-    sky.setAttribute('color','');
+  if (c.skyImg) {
+    // Panorámica 360°
+    sky.setAttribute('src', c.skyImg);
+    sky.setAttribute('color', '#ffffff');
+    sky.setAttribute('rotation', env==='bosque' ? '0 -90 0' : '0 0 0');
   } else {
-    sky.removeAttribute('src');
+    // Color sólido (sin panorámica aún)
+    sky.setAttribute('src', '');
     sky.setAttribute('color', c.skyColor);
+    sky.setAttribute('rotation', '0 0 0');
+    setTimeout(() => {
+      const mesh = sky.getObject3D('mesh');
+      if (mesh && mesh.material) {
+        mesh.material.map = null;
+        mesh.material.color.set(c.skyColor);
+        mesh.material.needsUpdate = true;
+      }
+    }, 80);
   }
 
   // Iluminación
@@ -806,8 +923,8 @@ function applyEnv(env) {
   document.getElementById('l-dir').setAttribute('intensity', c.dirInt);
 
   // Entidades de ambiente
-  ['espacio','biblioteca'].forEach(k=>
-    document.getElementById('env-'+k).setAttribute('visible', k===env));
+  ['espacio','biblioteca'].forEach(k =>
+    document.getElementById('env-'+k).setAttribute('visible', k === env));
 
   // HUD badge
   const dot = document.getElementById('edot');
@@ -828,6 +945,8 @@ function startSession() {
     S.running = true;
     startTick(); startElapsed();
     updateAsistente(0);
+    // Iniciar sonido si fue preseleccionado
+    if (AudioSys.current !== 'silencio') AudioSys.play(AudioSys.current);
   }, 500);
 }
 
