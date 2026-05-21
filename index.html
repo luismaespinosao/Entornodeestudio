@@ -336,12 +336,8 @@
   webxr="requiredFeatures:local-floor; optionalFeatures:dom-overlay,hand-tracking"
   vr-mode-ui="enabled:true">
 
-  <a-assets timeout="10000">
-    <!-- Panorámicas 360° de cada ambiente -->
-    <img id="sky-bosque"     src="fondobosque.jpg"     crossorigin="anonymous">
-    <img id="sky-espacio"    src="fondoespacio.jpg"    crossorigin="anonymous">
-    <img id="sky-biblioteca" src="fondobiblioteca.jpg" crossorigin="anonymous">
-    <!-- Modelo 3D del asistente virtual -->
+  <a-assets timeout="30000">
+    <!-- Solo el modelo 3D se precarga; las panorámicas se cargan directo por URL -->
     <a-asset-item id="kodkod" src="KodKod-v2.glb"></a-asset-item>
   </a-assets>
 
@@ -351,32 +347,25 @@
   <a-light id="l-lmp" type="point"       color="#ffcc88" intensity="1.0" distance="4" position="1.2 1.6 -1.5"></a-light>
 
   <!-- ══ SKY — cambia por ambiente ══ -->
-  <!-- Bosque: panorámica real -->
-  <a-sky id="sky-el" src="#sky-bosque" rotation="0 -90 0"></a-sky>
+  <a-sky id="sky-el" src="fondobosque.jpg" rotation="0 -90 0"></a-sky>
 
-  <!-- ══ SUELO COMPARTIDO (cambia color/material según ambiente) ══ -->
+  <!-- ══ SUELO COMPARTIDO ══ -->
   <a-plane
     id="suelo-shared"
-    position="0 0 0"
-    rotation="-90 0 0"
+    position="0 0 0" rotation="-90 0 0"
     width="40" height="40"
-    color="#2d4a1e"
-    roughness="0.95" metalness="0.02"
-    shadow="receive:true">
+    color="#2d4a1e" roughness="0.95" metalness="0.02">
   </a-plane>
 
-  <!-- ══ ENTORNO ESPACIO ══ -->
+  <!-- ══ ENTORNO ESPACIO (oculto por defecto) ══ -->
   <a-entity id="env-espacio" visible="false">
-    <!-- Rejilla tecnológica sobre el suelo -->
-    <a-entity position="0 0.002 0">
-      <!-- Líneas de rejilla -->
-      <a-plane rotation="-90 0 0" width="40" height="0.02" position="0 0 -5"  color="#1a3a6a" opacity="0.5"></a-plane>
-      <a-plane rotation="-90 0 0" width="40" height="0.02" position="0 0 0"   color="#1a3a6a" opacity="0.5"></a-plane>
-      <a-plane rotation="-90 0 0" width="40" height="0.02" position="0 0 5"   color="#1a3a6a" opacity="0.5"></a-plane>
-      <a-plane rotation="-90 0 0" width="0.02" height="40" position="-5 0 0"  color="#1a3a6a" opacity="0.5"></a-plane>
-      <a-plane rotation="-90 0 0" width="0.02" height="40" position="0 0 0"   color="#1a3a6a" opacity="0.5"></a-plane>
-      <a-plane rotation="-90 0 0" width="0.02" height="40" position="5 0 0"   color="#1a3a6a" opacity="0.5"></a-plane>
-    </a-entity>
+    <!-- Rejilla tecnológica en el suelo -->
+    <a-plane rotation="-90 0 0" width="40" height="0.015" position="0 0.002 -5"  color="#1a3a6a" opacity="0.6"></a-plane>
+    <a-plane rotation="-90 0 0" width="40" height="0.015" position="0 0.002 0"   color="#1a3a6a" opacity="0.6"></a-plane>
+    <a-plane rotation="-90 0 0" width="40" height="0.015" position="0 0.002 5"   color="#1a3a6a" opacity="0.6"></a-plane>
+    <a-plane rotation="-90 0 0" width="0.015" height="40" position="-5 0.002 0"  color="#1a3a6a" opacity="0.6"></a-plane>
+    <a-plane rotation="-90 0 0" width="0.015" height="40" position="0 0.002 0"   color="#1a3a6a" opacity="0.6"></a-plane>
+    <a-plane rotation="-90 0 0" width="0.015" height="40" position="5 0.002 0"   color="#1a3a6a" opacity="0.6"></a-plane>
     <!-- Estrellas -->
     <a-sphere position="-8 4 -15"  radius="0.04" color="#fff"></a-sphere>
     <a-sphere position="5 7 -18"   radius="0.05" color="#fff"></a-sphere>
@@ -402,11 +391,8 @@
   <!-- ══ ENTORNO BIBLIOTECA (oculto por defecto) ══ -->
   <a-entity id="env-biblioteca" visible="false">
     <!-- Alfombra central -->
-    <a-plane
-      position="0 0.003 -2"
-      rotation="-90 0 0"
-      width="3.5" height="3"
-      color="#8b2222" roughness="0.95" opacity="0.85">
+    <a-plane position="0 0.003 -1.5" rotation="-90 0 0"
+      width="3.5" height="2.8" color="#8b2222" roughness="0.95" opacity="0.9">
     </a-plane>
     <a-entity position="-4.5 0 -4">
       <a-box width="2.2" height="4" depth="0.3" position="0 2 0" color="#3a2408"></a-box>
@@ -788,11 +774,11 @@ const S = {
   tick:null, elTick:null, pTick:null
 };
 
-// Configs de ambiente — todos con panorámica 360° real
+// Configs de ambiente — panorámica por URL directa (más fiable en Netlify/servidores)
 const ENV = {
-  espacio:    { skyImg:'#sky-espacio',    skyColor:'#000510', ambColor:'#080818', ambInt:0.3, dirColor:'#6080ff', dirInt:0.2, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO'    },
-  bosque:     { skyImg:'#sky-bosque',     skyColor:null,      ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE'     },
-  biblioteca: { skyImg:'#sky-biblioteca', skyColor:'#1a0a02', ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.4, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA' }
+  espacio:    { skyImg:'fondoespacio.jpg',    rot:'0 0 0',    ambColor:'#080818', ambInt:0.3, dirColor:'#6080ff', dirInt:0.2, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO',    suelo:'#0d0d1f' },
+  bosque:     { skyImg:'fondobosque.jpg',     rot:'0 -90 0',  ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE',     suelo:'#2d4a1e' },
+  biblioteca: { skyImg:'fondobiblioteca.jpg', rot:'0 180 0',  ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.4, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA', suelo:'#5c3d1e' }
 };
 
 // Reloj top bar
@@ -831,7 +817,7 @@ const AudioSys = {
     this.current = type;
     if (type === 'silencio') return;
     const p = this.players[type];
-    if (p) p.play().catch(() => console.warn('[Audio] No se pudo reproducir:', type));
+    if (p) p.play().catch(e => console.warn('[Audio] Autoplay bloqueado:', e));
   },
 
   setVolume(v) {
@@ -849,12 +835,12 @@ function pickEnv(el) {
 function chip(el, grp) {
   document.getElementById(grp).querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
-  // Acción de sonido
-  if (grp==='c-snd') {
+  // Guardar preferencia de sonido — se activa al presionar Iniciar Sesión
+  if (grp === 'c-snd') {
     const t = el.textContent.trim();
-    if      (t==='Lo-fi')      AudioSys.play('lofi');
-    else if (t==='Naturaleza') AudioSys.play('naturaleza');
-    else                       AudioSys.play('silencio');
+    if      (t === 'Lo-fi')      AudioSys.current = 'lofi';
+    else if (t === 'Naturaleza') AudioSys.current = 'naturaleza';
+    else                         AudioSys.current = 'silencio';
   }
 }
 
@@ -863,12 +849,10 @@ function applyEnv(env) {
   const c = ENV[env];
   const sky = document.getElementById('sky-el');
 
-  // Panorámica 360° — todos los ambientes la tienen
+  // Cargar panorámica directo por URL (sin sistema de assets — más fiable)
   sky.setAttribute('src', c.skyImg);
   sky.setAttribute('color', '#ffffff');
-  // Rotación: ajustar según cómo quedó cada panorámica
-  const rot = { bosque:'0 -90 0', espacio:'0 0 0', biblioteca:'0 0 0' };
-  sky.setAttribute('rotation', rot[env] || '0 0 0');
+  sky.setAttribute('rotation', c.rot);
 
   // Iluminación
   document.getElementById('l-amb').setAttribute('color', c.ambColor);
@@ -876,13 +860,12 @@ function applyEnv(env) {
   document.getElementById('l-dir').setAttribute('color', c.dirColor);
   document.getElementById('l-dir').setAttribute('intensity', c.dirInt);
 
-  // Mostrar entidades del ambiente correcto
+  // Entidades de ambiente (3D decorativos)
   ['espacio','biblioteca'].forEach(k =>
     document.getElementById('env-'+k).setAttribute('visible', k === env));
 
-  // Piso — cambiar color/material según ambiente
-  const suelos = { espacio:'#0d0d1f', bosque:'#2d4a1e', biblioteca:'#5c3d1e' };
-  document.getElementById('suelo-shared').setAttribute('color', suelos[env]);
+  // Piso — color según ambiente
+  document.getElementById('suelo-shared').setAttribute('color', c.suelo);
 
   // HUD badge
   document.getElementById('edot').className = 'env-dot ' + c.dot;
