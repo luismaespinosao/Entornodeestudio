@@ -337,7 +337,11 @@
   vr-mode-ui="enabled:true">
 
   <a-assets timeout="30000">
-    <!-- Solo el modelo 3D se precarga; las panorámicas se cargan directo por URL -->
+    <!-- Panorámicas 360° — precargadas con #id para máxima fiabilidad -->
+    <img id="sky-bosque"     src="fondobosque.jpg"     crossorigin="anonymous">
+    <img id="sky-espacio"    src="fondoespacio.jpg"    crossorigin="anonymous">
+    <img id="sky-biblioteca" src="fondobiblioteca.jpg" crossorigin="anonymous">
+    <!-- Modelo 3D del asistente virtual -->
     <a-asset-item id="kodkod" src="KodKod-v2.glb"></a-asset-item>
   </a-assets>
 
@@ -346,8 +350,8 @@
   <a-light id="l-dir" type="directional" color="#a0c8ff" intensity="0.5" position="2 4 1"></a-light>
   <a-light id="l-lmp" type="point"       color="#ffcc88" intensity="1.0" distance="4" position="1.2 1.6 -1.5"></a-light>
 
-  <!-- ══ SKY — cambia por ambiente ══ -->
-  <a-sky id="sky-el" src="fondobosque.jpg" rotation="0 -90 0"></a-sky>
+  <!-- ══ SKY — cambia por ambiente usando #id precargado ══ -->
+  <a-sky id="sky-el" src="#sky-bosque" rotation="0 -90 0"></a-sky>
 
   <!-- ══ SUELO COMPARTIDO ══ -->
   <a-plane
@@ -707,11 +711,11 @@ const S = {
   tick:null, elTick:null, pTick:null
 };
 
-// Configs de ambiente — panorámica por URL directa (más fiable en Netlify/servidores)
+// Configs de ambiente — referencias #id a los assets precargados
 const ENV = {
-  espacio:    { skyImg:'fondoespacio.jpg',    rot:'0 0 0',    ambColor:'#080818', ambInt:0.3, dirColor:'#6080ff', dirInt:0.2, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO',    suelo:'#0d0d1f' },
-  bosque:     { skyImg:'fondobosque.jpg',     rot:'0 -90 0',  ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE',     suelo:'#2d4a1e' },
-  biblioteca: { skyImg:'fondobiblioteca.jpg', rot:'0 180 0',  ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.4, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA', suelo:'#5c3d1e' }
+  espacio:    { skyImg:'#sky-espacio',    rot:'0 0 0',    ambColor:'#080818', ambInt:0.3, dirColor:'#6080ff', dirInt:0.2, dot:'espacio',    lbl:'🌌 Espacio',    topLbl:'ESPACIO',    suelo:'#0d0d1f' },
+  bosque:     { skyImg:'#sky-bosque',     rot:'0 -90 0',  ambColor:'#1a2a1a', ambInt:0.7, dirColor:'#a0c8ff', dirInt:0.5, dot:'bosque',     lbl:'🌲 Bosque',     topLbl:'BOSQUE',     suelo:'#2d4a1e' },
+  biblioteca: { skyImg:'#sky-biblioteca', rot:'0 180 0',  ambColor:'#3a2010', ambInt:0.9, dirColor:'#ffcc80', dirInt:0.4, dot:'biblioteca', lbl:'📚 Biblioteca', topLbl:'BIBLIOTECA', suelo:'#5c3d1e' }
 };
 
 // Reloj top bar
